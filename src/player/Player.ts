@@ -1,7 +1,8 @@
 // Player: first-person physics — axis-separated AABB collision against
 // voxels, gravity, jumping, and yaw/pitch mouse look.
 import * as THREE from "three";
-import { isSolid, WATER } from "../world/Block";
+import { WATER } from "../world/Block";
+import { moveAndCollide, boxIntersectsCell } from "../physics/aabb";
 import type { World } from "../world/World";
 import type { Input } from "../core/Input";
 
@@ -12,7 +13,6 @@ const SPEED = 4.5;
 const GRAVITY = 28;
 const JUMP_SPEED = 8.5;
 const MOUSE_SENS = 0.0022;
-const EPS = 0.001;
 
 export const MAX_HEALTH = 20;
 const MAX_AIR = 10; // seconds of breath underwater
@@ -84,10 +84,7 @@ export class Player {
       this.onGround = false;
     }
 
-    this.onGround = false;
-    this.collideAxis(world, 0, this.velocity.x * dt);
-    this.collideAxis(world, 2, this.velocity.z * dt);
-    this.collideAxis(world, 1, this.velocity.y * dt);
+    moveAndCollide(this, world, dt, HALF_W, HEIGHT);
 
     this.applySurvival(dt, wasOnGround, world);
   }
@@ -168,61 +165,6 @@ export class Player {
 
   /** Would placing a block in this cell overlap the player's AABB? */
   intersectsBlock(x: number, y: number, z: number): boolean {
-    const p = this.position;
-    return (
-      x + 1 > p.x - HALF_W &&
-      x < p.x + HALF_W &&
-      y + 1 > p.y &&
-      y < p.y + HEIGHT &&
-      z + 1 > p.z - HALF_W &&
-      z < p.z + HALF_W
-    );
-  }
-
-  // Move along one axis, then clamp out of any solid voxel the AABB entered.
-  // Axis-separated resolution keeps sliding along walls working naturally.
-  private collideAxis(world: World, axis: 0 | 1 | 2, amount: number): void {
-    if (amount === 0) return;
-    const p = this.position;
-    if (axis === 0) p.x += amount;
-    else if (axis === 1) p.y += amount;
-    else p.z += amount;
-
-    const minX = Math.floor(p.x - HALF_W);
-    const maxX = Math.floor(p.x + HALF_W);
-    const minY = Math.floor(p.y);
-    const maxY = Math.floor(p.y + HEIGHT);
-    const minZ = Math.floor(p.z - HALF_W);
-    const maxZ = Math.floor(p.z + HALF_W);
-
-    // Nearest blocking face across all overlapped voxels on the moved axis.
-    let clamp: number | null = null;
-    for (let x = minX; x <= maxX; x++) {
-      for (let y = minY; y <= maxY; y++) {
-        for (let z = minZ; z <= maxZ; z++) {
-          if (!isSolid(world.getBlock(x, y, z))) continue;
-          const cell = axis === 0 ? x : axis === 1 ? y : z;
-          if (amount > 0) clamp = clamp === null ? cell : Math.min(clamp, cell);
-          else clamp = clamp === null ? cell + 1 : Math.max(clamp, cell + 1);
-        }
-      }
-    }
-    if (clamp === null) return;
-
-    if (axis === 0) {
-      p.x = amount > 0 ? clamp - HALF_W - EPS : clamp + HALF_W + EPS;
-      this.velocity.x = 0;
-    } else if (axis === 1) {
-      if (amount > 0) {
-        p.y = clamp - HEIGHT - EPS;
-      } else {
-        p.y = clamp;
-        this.onGround = true;
-      }
-      this.velocity.y = 0;
-    } else {
-      p.z = amount > 0 ? clamp - HALF_W - EPS : clamp + HALF_W + EPS;
-      this.velocity.z = 0;
-    }
+    return boxIntersectsCell(this.position, HALF_W, HEIGHT, x, y, z);
   }
 }

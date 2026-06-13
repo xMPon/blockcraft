@@ -115,10 +115,68 @@ export function createAtlasTexture(): THREE.CanvasTexture {
     ctx.fillRect(ox + 6, oy + 6, 4, 1);
   }
 
+  // --- Item icons (transparent background) -------------------------------
+  const tile = (i: number) => {
+    const [ox, oy] = origin(i);
+    ctx.clearRect(ox, oy, TILE_PX, TILE_PX);
+    return [ox, oy] as const;
+  };
+  const rect = (ox: number, oy: number, x: number, y: number, w: number, h: number, c: string) => {
+    ctx.fillStyle = c;
+    ctx.fillRect(ox + x, oy + y, w, h);
+  };
+  const blob = (i: number, base: string, dark: string) => {
+    const [ox, oy] = tile(i);
+    rect(ox, oy, 4, 5, 8, 6, base);
+    rect(ox, oy, 5, 4, 6, 8, base);
+    rect(ox, oy, 5, 6, 2, 2, dark);
+  };
+
+  // 20 stick
+  { const [ox, oy] = tile(20); rect(ox, oy, 9, 3, 2, 4, "#8a6a3c"); rect(ox, oy, 7, 6, 2, 4, "#7b5836"); rect(ox, oy, 5, 9, 2, 4, "#6e4d2c"); }
+  blob(21, "#2f2f2f", "#101010"); // coal
+  { const [ox, oy] = tile(22); rect(ox, oy, 3, 6, 10, 4, "#e8d8c4"); rect(ox, oy, 3, 6, 10, 1, "#fff6ea"); } // iron ingot
+  { const [ox, oy] = tile(23); rect(ox, oy, 3, 6, 10, 4, "#f2d65a"); rect(ox, oy, 3, 6, 10, 1, "#fff2a8"); } // gold ingot
+  { const [ox, oy] = tile(24); rect(ox, oy, 6, 3, 4, 2, "#7af0e8"); rect(ox, oy, 4, 5, 8, 4, "#52d9d0"); rect(ox, oy, 6, 9, 4, 2, "#2fa8a0"); } // diamond
+  blob(25, "#caa17e", "#9a754d"); // raw iron
+  blob(26, "#e6c558", "#b59a32"); // raw gold
+  { const [ox, oy] = tile(27); for (const [x, y] of [[5, 4], [8, 5], [6, 8], [9, 9], [4, 10], [10, 7]]) rect(ox, oy, x, y, 2, 2, "#d23a2a"); } // redstone
+  // 28 pickaxe, 29 axe, 30 shovel, 31 sword — simple head + handle
+  { const [ox, oy] = tile(28); rect(ox, oy, 3, 3, 10, 2, "#c9c9c9"); rect(ox, oy, 7, 4, 2, 9, "#7b5836"); }
+  { const [ox, oy] = tile(29); rect(ox, oy, 8, 3, 4, 4, "#c9c9c9"); rect(ox, oy, 7, 4, 2, 9, "#7b5836"); }
+  { const [ox, oy] = tile(30); rect(ox, oy, 6, 3, 4, 4, "#c9c9c9"); rect(ox, oy, 7, 6, 2, 7, "#7b5836"); }
+  { const [ox, oy] = tile(31); rect(ox, oy, 7, 2, 2, 8, "#d8d8d8"); rect(ox, oy, 5, 9, 6, 2, "#9a7b4c"); rect(ox, oy, 7, 11, 2, 3, "#7b5836"); }
+
   const tex = new THREE.CanvasTexture(canvas);
   tex.magFilter = THREE.NearestFilter;
   tex.minFilter = THREE.NearestFilter;
   tex.generateMipmaps = false;
   tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// A single dark-crack overlay shown on the block being mined, its opacity
+// ramped with break progress (a cheap stand-in for staged crack textures).
+export function createCrackTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = TILE_PX;
+  canvas.height = TILE_PX;
+  const ctx = canvas.getContext("2d")!;
+  ctx.strokeStyle = "rgba(0,0,0,0.85)";
+  ctx.lineWidth = 1;
+  const crack = (pts: [number, number][]) => {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.stroke();
+  };
+  crack([[8, 0], [7, 5], [9, 9], [8, 16]]);
+  crack([[0, 7], [5, 8], [9, 6], [16, 9]]);
+  crack([[2, 2], [5, 6]]);
+  crack([[14, 13], [11, 9]]);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false;
   return tex;
 }

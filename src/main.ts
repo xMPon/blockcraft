@@ -8,11 +8,15 @@ import { Sky } from "./core/Sky";
 import { createChunkMaterials } from "./core/ChunkMaterial";
 import { World, RENDER_RADIUS } from "./world/World";
 import { WorldGen } from "./world/WorldGen";
-import { createAtlasTexture } from "./world/TextureAtlas";
+import { createAtlasTexture, createCrackTexture } from "./world/TextureAtlas";
 import { AIR, WATER, isSolid } from "./world/Block";
 import { CHUNK_X } from "./world/Chunk";
 import { Player, EYE_HEIGHT } from "./player/Player";
 import { raycastVoxel } from "./player/Raycast";
+import { Inventory } from "./item/Inventory";
+import { itemDef, blockDrop, I_STONE_PICKAXE, I_STONE_AXE, I_STONE_SHOVEL, I_TORCH } from "./item/Item";
+import { MiningState, toolOf, canHarvest } from "./player/Mining";
+import { ItemDrop } from "./entity/ItemDrop";
 import { Hotbar } from "./ui/Hotbar";
 import { Hud } from "./ui/Hud";
 
@@ -42,7 +46,19 @@ for (let cx = -1; cx <= 1; cx++) for (let cz = -1; cz <= 1; cz++) world.getOrCre
 
 const player = new Player(8.5, world.gen.heightAt(8, 8) + 1, 8.5);
 const hud = new Hud(document.body, () => input.requestPointerLock());
-const hotbar = new Hotbar(document.body);
+
+// Inventory + hotbar. Starting tools are a temporary aid until crafting (3b);
+// after that the player will start empty and craft these instead.
+const inventory = new Inventory();
+inventory.add(I_STONE_PICKAXE, 1);
+inventory.add(I_STONE_AXE, 1);
+inventory.add(I_STONE_SHOVEL, 1);
+inventory.add(I_TORCH, 32);
+const hotbar = new Hotbar(document.body, inventory);
+
+const mining = new MiningState();
+const drops: ItemDrop[] = [];
+const dropMaterial = new THREE.MeshBasicMaterial({ map: atlas, alphaTest: 0.5 });
 
 // Wireframe box around the raycast-targeted block.
 const highlight = new THREE.LineSegments(
@@ -51,6 +67,27 @@ const highlight = new THREE.LineSegments(
 );
 highlight.visible = false;
 engine.scene.add(highlight);
+
+// Crack overlay shown on the block being mined; opacity ramps with progress.
+const crack = new THREE.Mesh(
+  new THREE.BoxGeometry(1.01, 1.01, 1.01),
+  new THREE.MeshBasicMaterial({
+    map: createCrackTexture(),
+    transparent: true,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+  }),
+);
+crack.visible = false;
+engine.scene.add(crack);
+
+function spawnDrop(x: number, y: number, z: number, item: number, count: number): void {
+  const drop = new ItemDrop(x + 0.5, y + 0.2, z + 0.5, item, count, dropMaterial);
+  drop.velocity.set((Math.random() - 0.5) * 1.5, 2, (Math.random() - 0.5) * 1.5);
+  drops.push(drop);
+  engine.scene.add(drop.object3d);
+}
 
 engine.start((dt) => {
   hud.setOverlayVisible(!input.locked);
@@ -80,24 +117,62 @@ engine.start((dt) => {
   highlight.visible = hit !== null;
   if (hit) highlight.position.set(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
 
+  // Hold left mouse to mine the targeted block. The right tool tier gates the
+  // drop; correct tools break faster (see Mining).
+  const tool = toolOf(inventory.selectedStack);
+  const targetId = hit ? world.getBlock(hit.x, hit.y, hit.z) : AIR;
+  const broke = mining.update(input.isMouseDown(0), hit, targetId, tool, dt);
+  if (broke && hit) {
+    const drop = blockDrop(targetId);
+    if (drop !== null && canHarvest(targetId, tool)) spawnDrop(hit.x, hit.y, hit.z, drop, 1);
+    world.setBlock(hit.x, hit.y, hit.z, AIR);
+  }
+
+  // Crack overlay tracks the mining target.
+  if (mining.target) {
+    crack.visible = true;
+    crack.position.set(mining.target.x + 0.5, mining.target.y + 0.5, mining.target.z + 0.5);
+    (crack.material as THREE.MeshBasicMaterial).opacity = mining.progress;
+  } else {
+    crack.visible = false;
+  }
+
+  // Right-click places the selected block-item against the targeted face.
   for (const button of input.consumeClicks()) {
-    if (!hit) break;
-    if (button === 0) {
-      world.setBlock(hit.x, hit.y, hit.z, AIR);
-    } else if (button === 2) {
-      const px = hit.x + hit.face[0];
-      const py = hit.y + hit.face[1];
-      const pz = hit.z + hit.face[2];
-      const occupant = world.getBlock(px, py, pz);
-      if ((occupant === AIR || occupant === WATER) && !player.intersectsBlock(px, py, pz)) {
-        world.setBlock(px, py, pz, hotbar.selectedBlockId);
-      }
+    if (button !== 2 || !hit) continue;
+    const stack = inventory.selectedStack;
+    const place = stack ? itemDef(stack.item).placeBlock : undefined;
+    if (place === undefined) continue;
+    const px = hit.x + hit.face[0];
+    const py = hit.y + hit.face[1];
+    const pz = hit.z + hit.face[2];
+    const occupant = world.getBlock(px, py, pz);
+    if ((occupant === AIR || occupant === WATER) && !player.intersectsBlock(px, py, pz)) {
+      world.setBlock(px, py, pz, place);
+      inventory.consumeSelected();
     }
   }
 
+  // Update item drops; collect any the player reaches.
+  for (const drop of drops) {
+    drop.update(dt, world);
+    if (drop.collectibleBy(player.position)) {
+      const leftover = inventory.add(drop.item, drop.count);
+      if (leftover === 0) drop.dead = true;
+      else drop.count = leftover;
+    }
+  }
+  for (let i = drops.length - 1; i >= 0; i--) {
+    if (drops[i].dead) {
+      engine.scene.remove(drops[i].object3d);
+      drops.splice(i, 1);
+    }
+  }
+
+  hotbar.refresh();
   player.syncCamera(engine.camera);
   hud.update(player.position.x, player.position.y, player.position.z, player.health, player.air, player.maxAir);
 });
 
 // Debug handle for headless verification (drive streaming/render from devtools).
-(window as unknown as { __bc: unknown }).__bc = { engine, world, player, input, hud, sky, materials, sun };
+(window as unknown as { __bc: unknown }).__bc = { engine, world, player, input, hud, sky, materials, sun, inventory, mining, drops, spawnDrop };

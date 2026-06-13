@@ -26,9 +26,16 @@ Minecraft-style browser voxel game. TypeScript + Three.js + Vite. Plain TS game 
 | `world/ChunkMesher.ts` | Culled-face meshing → opaque + water geometry; bakes per-vertex `aLight`; torch thin-pillar path |
 | `world/World.ts` | Chunk map, world-coord block + light access, streaming, lighting + mesh lifecycle |
 | `world/TextureAtlas.ts` | Procedural 8×8 canvas atlas, 16px tiles, NearestFilter |
-| `player/Player.ts` | AABB physics, mouse look, survival (health/air, fall damage, drowning, respawn) |
+| `physics/aabb.ts` | Shared swept-AABB-vs-voxels resolver (player + entities); DOM-free |
+| `player/Player.ts` | Player physics (uses `physics/aabb`), mouse look, survival (health/air, fall damage, drowning, respawn) |
 | `player/Raycast.ts` | Amanatides–Woo voxel DDA — pure, no three.js |
-| `ui/Hotbar.ts`, `ui/Hud.ts` | DOM hotbar, crosshair, debug overlay, click-to-play overlay |
+| `player/Mining.ts` | Hold-to-mine: break-time + harvest-tier gate (pure) + progress tracker |
+| `item/Item.ts` | Item registry (block-items, materials, tools) + block→drop table |
+| `item/ItemStack.ts` | Stack merge/split helpers (pure) |
+| `item/Inventory.ts` | 36-slot inventory (9 hotbar): add/remove/has/consume |
+| `entity/Entity.ts` | Entity base on `physics/aabb` (gravity + collision); mobs reuse it |
+| `entity/ItemDrop.ts` | Bobbing/spinning item-drop entity, proximity pickup |
+| `ui/Hotbar.ts`, `ui/Hud.ts` | DOM hotbar (inventory row), crosshair, hearts/air, overlay |
 
 ## Conventions
 
@@ -44,4 +51,5 @@ Minecraft-style browser voxel game. TypeScript + Three.js + Vite. Plain TS game 
 Building toward a Minecraft Beta-level survival game in phases (see the plan).
 Done: **Phase 1** — caves, ores, biomes, bedrock, 128-tall chunks.
 Done: **Phase 2** — skylight + blocklight propagation, day/night cycle, placeable torches, fall damage, drowning, death/respawn, health + air HUD.
-Next: items/drops/hold-to-mine; inventory/crafting/smelting; mobs + combat + hunger; persistence.
+Done: **Phase 3a** — item registry + drop table, 36-slot inventory, item-drop entities with pickup, hold-to-mine with hardness/tool-speed + crack overlay + harvest-tier gate, shared AABB physics.
+Next (3b): inventory screen + crafting (table) + furnace smelting; then mobs + combat + hunger; persistence.

@@ -2,6 +2,7 @@
 // Deltas/clicks accumulate between frames and are consumed once per tick.
 export class Input {
   private keys = new Set<string>();
+  private mouse = new Set<number>();
   private dx = 0;
   private dy = 0;
   private clicks: number[] = [];
@@ -14,7 +15,10 @@ export class Input {
 
     document.addEventListener("pointerlockchange", () => {
       this.locked = document.pointerLockElement === this.canvas;
-      if (!this.locked) this.keys.clear();
+      if (!this.locked) {
+        this.keys.clear();
+        this.mouse.clear();
+      }
     });
     window.addEventListener("mousemove", (e) => {
       if (this.locked) {
@@ -23,8 +27,12 @@ export class Input {
       }
     });
     window.addEventListener("mousedown", (e) => {
-      if (this.locked) this.clicks.push(e.button);
+      if (this.locked) {
+        this.mouse.add(e.button);
+        this.clicks.push(e.button);
+      }
     });
+    window.addEventListener("mouseup", (e) => this.mouse.delete(e.button));
     window.addEventListener("contextmenu", (e) => e.preventDefault());
   }
 
@@ -34,6 +42,10 @@ export class Input {
 
   isDown(code: string): boolean {
     return this.keys.has(code);
+  }
+
+  isMouseDown(button: number): boolean {
+    return this.mouse.has(button);
   }
 
   consumeMouseDelta(): { dx: number; dy: number } {

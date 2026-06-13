@@ -136,6 +136,17 @@ canvas {
   font-size: 10px;
 }
 
+.hotbar-count {
+  position: absolute;
+  right: 3px;
+  bottom: 1px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-shadow: 0 1px 2px #000, 1px 0 2px #000;
+  pointer-events: none;
+}
+
 .overlay {
   position: fixed;
   inset: 0;
