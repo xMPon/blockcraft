@@ -1,6 +1,6 @@
 // Chunk: a 16×64×16 voxel column stored as a flat Uint8Array of block ids.
 export const CHUNK_X = 16;
-export const CHUNK_Y = 64;
+export const CHUNK_Y = 128;
 export const CHUNK_Z = 16;
 
 export class Chunk {

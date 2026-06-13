@@ -7,8 +7,10 @@ import { WorldGen } from "./WorldGen";
 import { meshChunk, type ChunkMaterials } from "./ChunkMesher";
 
 export const RENDER_RADIUS = 6; // chunks meshed and visible
-const GEN_RADIUS = RENDER_RADIUS + 1; // generated wider so border faces mesh against real data
-const MESH_BUDGET_PER_FRAME = 4;
+// Generation (terrain + caves + ores) is the heavy work at 128-tall chunks, so
+// it's budgeted per frame via meshing: remesh() generates a chunk and its
+// neighbours on demand, spreading the cost instead of bursting the whole radius.
+const MESH_BUDGET_PER_FRAME = 2;
 
 interface ChunkMeshes {
   solid: THREE.Mesh | null;
@@ -74,12 +76,6 @@ export class World {
     const pcx = Math.floor(centerWx) >> 4;
     const pcz = Math.floor(centerWz) >> 4;
 
-    for (let cx = pcx - GEN_RADIUS; cx <= pcx + GEN_RADIUS; cx++) {
-      for (let cz = pcz - GEN_RADIUS; cz <= pcz + GEN_RADIUS; cz++) {
-        this.getOrCreateChunk(cx, cz);
-      }
-    }
-
     // Rebuild edited chunks in the same frame so block changes feel instant.
     for (const key of this.dirty) {
       if (this.meshes.has(key)) this.remesh(key);
@@ -113,6 +109,12 @@ export class World {
     if (old) this.disposeMeshes(old);
     const [cx, cz] = key.split(",").map(Number);
     const chunk = this.getOrCreateChunk(cx, cz);
+    // Ensure the four lateral neighbours exist so border faces mesh against
+    // real block data rather than air (generation is budgeted via the caller).
+    this.getOrCreateChunk(cx - 1, cz);
+    this.getOrCreateChunk(cx + 1, cz);
+    this.getOrCreateChunk(cx, cz - 1);
+    this.getOrCreateChunk(cx, cz + 1);
     const m = meshChunk(this, chunk, this.materials);
     this.meshes.set(key, m);
     if (m.solid) this.scene.add(m.solid);

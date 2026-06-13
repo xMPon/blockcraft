@@ -3,7 +3,7 @@
 // into vertex colours — the classic flat-lit Minecraft look, no scene lights.
 import * as THREE from "three";
 import { Chunk, CHUNK_X, CHUNK_Y, CHUNK_Z } from "./Chunk";
-import { AIR, BLOCKS, WATER, isOpaque } from "./Block";
+import { AIR, BLOCKS, isOpaque, meshLayer } from "./Block";
 import { tileUV } from "./TextureAtlas";
 
 export interface ChunkMaterials {
@@ -81,7 +81,7 @@ export function meshChunk(
       for (let x = 0; x < CHUNK_X; x++) {
         const id = chunk.get(x, y, z);
         if (id === AIR) continue;
-        const isWater = id === WATER;
+        const isWater = meshLayer(id) === "water";
         const builder = isWater ? waterBuilder : solidBuilder;
 
         for (const face of FACES) {
@@ -90,9 +90,10 @@ export function meshChunk(
             y + face.dir[1],
             baseZ + z + face.dir[2],
           );
-          // Opaque blocks face anything see-through; water only faces air
-          // (solid neighbours already draw the shared boundary themselves).
-          const visible = isWater ? nb === AIR : !isOpaque(nb);
+          // Water only faces air. Everything else faces any non-opaque
+          // neighbour, but skips boundaries shared with the same block id so
+          // adjacent leaves (and later glass) don't draw internal faces.
+          const visible = isWater ? nb === AIR : !isOpaque(nb) && nb !== id;
           if (visible) builder.quad(baseX + x, y, baseZ + z, face, BLOCKS[id].tiles);
         }
       }

@@ -34,6 +34,10 @@ const world = new World(new WorldGen(SEED), engine.scene, {
   }),
 });
 
+// Pre-generate the spawn area so the player lands on solid ground frame one
+// (player physics runs before world streaming in the loop below).
+for (let cx = -1; cx <= 1; cx++) for (let cz = -1; cz <= 1; cz++) world.getOrCreateChunk(cx, cz);
+
 const player = new Player(8.5, world.gen.heightAt(8, 8) + 1, 8.5);
 const hud = new Hud(document.body, () => input.requestPointerLock());
 const hotbar = new Hotbar(document.body);
@@ -84,3 +88,6 @@ engine.start((dt) => {
   player.syncCamera(engine.camera);
   hud.update(player.position.x, player.position.y, player.position.z);
 });
+
+// Debug handle for headless verification (drive streaming/render from devtools).
+(window as unknown as { __bc: unknown }).__bc = { engine, world, player, input, hud };
