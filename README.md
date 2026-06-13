@@ -25,7 +25,7 @@ npm run dev    # http://localhost:5173
 | Click | Capture mouse (pointer lock) |
 | WASD | Move |
 | Mouse | Look |
-| Space | Jump |
+| Space | Jump / swim up |
 | Left click (hold) | Mine block |
 | Right click | Place block / open table or furnace |
 | E | Open inventory + crafting |

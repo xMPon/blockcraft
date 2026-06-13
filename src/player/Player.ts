@@ -14,6 +14,13 @@ const GRAVITY = 28;
 const JUMP_SPEED = 8.5;
 const MOUSE_SENS = 0.0022;
 
+// Swimming: in water gravity is gentle, sinking is capped, holding Space swims
+// up, and horizontal movement is slowed.
+const SWIM_GRAVITY = GRAVITY * 0.22;
+const SWIM_SINK_CAP = 2.5; // max downward speed in water
+const SWIM_UP = 4.2; // upward speed while holding Space
+const SWIM_HSPEED = 0.6; // horizontal speed multiplier in water
+
 export const MAX_HEALTH = 20;
 const MAX_AIR = 10; // seconds of breath underwater
 const REGEN_INTERVAL = 3; // seconds per 1 HP passive heal (placeholder until hunger)
@@ -36,7 +43,8 @@ export class Player {
   air = MAX_AIR;
   readonly maxHealth = MAX_HEALTH;
   readonly maxAir = MAX_AIR;
-  submerged = false;
+  submerged = false; // head underwater (drowning)
+  inWater = false; // body in water (swimming)
 
   private readonly spawn: THREE.Vector3;
   private fallPeak: number;
@@ -71,17 +79,27 @@ export class Player {
       strafe /= mag;
     }
 
+    this.inWater = this.checkWater(world);
+
     // yaw 0 faces -Z (three.js camera convention).
     const sin = Math.sin(this.yaw);
     const cos = Math.cos(this.yaw);
-    this.velocity.x = (-sin * fwd + cos * strafe) * SPEED;
-    this.velocity.z = (-cos * fwd - sin * strafe) * SPEED;
+    const hspeed = SPEED * (this.inWater ? SWIM_HSPEED : 1);
+    this.velocity.x = (-sin * fwd + cos * strafe) * hspeed;
+    this.velocity.z = (-cos * fwd - sin * strafe) * hspeed;
 
-    this.velocity.y -= GRAVITY * dt;
-    if (this.velocity.y < -50) this.velocity.y = -50;
-    if (input.isDown("Space") && this.onGround) {
-      this.velocity.y = JUMP_SPEED;
-      this.onGround = false;
+    if (this.inWater) {
+      // Buoyant: sink gently (capped), or swim up by holding Space.
+      this.velocity.y -= SWIM_GRAVITY * dt;
+      if (this.velocity.y < -SWIM_SINK_CAP) this.velocity.y = -SWIM_SINK_CAP;
+      if (input.isDown("Space")) this.velocity.y = SWIM_UP;
+    } else {
+      this.velocity.y -= GRAVITY * dt;
+      if (this.velocity.y < -50) this.velocity.y = -50;
+      if (input.isDown("Space") && this.onGround) {
+        this.velocity.y = JUMP_SPEED;
+        this.onGround = false;
+      }
     }
 
     moveAndCollide(this, world, dt, HALF_W, HEIGHT);
@@ -92,6 +110,9 @@ export class Player {
   // Fall damage on landing, drowning while submerged, slow passive regen, and
   // respawn on death. Hunger (Phase 4) will later gate the regen.
   private applySurvival(dt: number, wasOnGround: boolean, world: World): void {
+    // Water cushions falls — zero the tracked drop height while swimming.
+    if (this.inWater) this.fallPeak = this.position.y;
+
     if (this.onGround) {
       if (!wasOnGround) this.hurt(fallDamage(this.fallPeak - this.position.y));
       this.fallPeak = this.position.y;
@@ -166,5 +187,15 @@ export class Player {
   /** Would placing a block in this cell overlap the player's AABB? */
   intersectsBlock(x: number, y: number, z: number): boolean {
     return boxIntersectsCell(this.position, HALF_W, HEIGHT, x, y, z);
+  }
+
+  /** Is the player's body (feet or waist) in a water voxel? */
+  private checkWater(world: World): boolean {
+    const x = Math.floor(this.position.x);
+    const z = Math.floor(this.position.z);
+    return (
+      world.getBlock(x, Math.floor(this.position.y + 0.1), z) === WATER ||
+      world.getBlock(x, Math.floor(this.position.y + 0.9), z) === WATER
+    );
   }
 }
