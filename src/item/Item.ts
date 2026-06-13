@@ -2,8 +2,8 @@
 // (place a block), materials (coal, ingots, diamond…), and tools. Plus the
 // block→drop table. Item ids are their own sequence, independent of block ids.
 import {
-  BLOCKS, COAL_ORE, COBBLESTONE, DIAMOND_ORE, DIRT, GOLD_ORE, GRASS, GRAVEL,
-  IRON_ORE, LEAVES, PLANKS, REDSTONE_ORE, SAND, STONE, TORCH, WOOD,
+  BLOCKS, COAL_ORE, COBBLESTONE, CRAFTING_TABLE, DIAMOND_ORE, DIRT, FURNACE, GLASS,
+  GOLD_ORE, GRASS, GRAVEL, IRON_ORE, LEAVES, PLANKS, REDSTONE_ORE, SAND, STONE, TORCH, WOOD,
   TIER_WOOD, TIER_STONE, TIER_IRON, TIER_DIAMOND, type ToolKind,
 } from "../world/Block";
 
@@ -35,6 +35,9 @@ export const I_COBBLESTONE = 7;
 export const I_PLANKS = 8;
 export const I_GRAVEL = 9;
 export const I_TORCH = 10;
+export const I_CRAFTING_TABLE = 11;
+export const I_FURNACE = 12;
+export const I_GLASS = 13;
 // Materials
 export const I_COAL = 20;
 export const I_RAW_IRON = 21;
@@ -89,6 +92,9 @@ block(I_COBBLESTONE, "cobblestone", COBBLESTONE);
 block(I_PLANKS, "planks", PLANKS);
 block(I_GRAVEL, "gravel", GRAVEL);
 block(I_TORCH, "torch", TORCH);
+block(I_CRAFTING_TABLE, "crafting table", CRAFTING_TABLE);
+block(I_FURNACE, "furnace", FURNACE);
+block(I_GLASS, "glass", GLASS);
 
 material(I_COAL, "coal", T_COAL, "#2a2a2a");
 material(I_RAW_IRON, "raw iron", T_RAW_IRON, "#caa17e");
@@ -131,6 +137,8 @@ const BLOCK_DROPS: Record<number, number> = {
   [COBBLESTONE]: I_COBBLESTONE,
   [PLANKS]: I_PLANKS,
   [TORCH]: I_TORCH,
+  [CRAFTING_TABLE]: I_CRAFTING_TABLE,
+  [FURNACE]: I_FURNACE,
   [COAL_ORE]: I_COAL,
   [IRON_ORE]: I_RAW_IRON,
   [GOLD_ORE]: I_RAW_GOLD,

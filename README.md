@@ -26,10 +26,11 @@ npm run dev    # http://localhost:5173
 | WASD | Move |
 | Mouse | Look |
 | Space | Jump |
-| Left click | Break block |
-| Right click | Place block |
-| 1–6 / mouse wheel | Select hotbar block |
-| Esc | Release mouse |
+| Left click (hold) | Mine block |
+| Right click | Place block / open table or furnace |
+| E | Open inventory + crafting |
+| 1–9 / mouse wheel | Select hotbar slot |
+| Esc | Release mouse / close screen |
 
 ## Tests
 

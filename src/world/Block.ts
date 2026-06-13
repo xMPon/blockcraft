@@ -20,6 +20,9 @@ export const GOLD_ORE = 15;
 export const DIAMOND_ORE = 16;
 export const REDSTONE_ORE = 17;
 export const TORCH = 18;
+export const CRAFTING_TABLE = 19;
+export const FURNACE = 20;
+export const GLASS = 21;
 
 /** Which geometry bucket a block meshes into. */
 export type MeshLayer = "solid" | "cutout" | "water";
@@ -93,6 +96,11 @@ export const BLOCKS: BlockDef[] = [
   def({ id: REDSTONE_ORE, name: "redstone ore", tiles: [18, 18, 18], color: "#c83a2a", hardness: 3, tool: "pickaxe", minTier: TIER_IRON }),
   // Torch: a non-solid thin-pillar emitter (see ChunkMesher's torch path).
   def({ id: TORCH, name: "torch", solid: false, opaque: false, layer: "cutout", tiles: [19, 19, 19], color: "#ffcf57", hardness: 0, light: 14 }),
+  def({ id: CRAFTING_TABLE, name: "crafting table", tiles: [32, 33, 32], color: "#9a6f3a", hardness: 2.5, tool: "axe" }),
+  def({ id: FURNACE, name: "furnace", tiles: [35, 34, 35], color: "#6b6b6b", hardness: 3.5, tool: "pickaxe", minTier: TIER_WOOD }),
+  // Glass: cutout layer with a framed transparent tile — the shader discards the
+  // clear centre, so it renders see-through without a separate transparent pass.
+  def({ id: GLASS, name: "glass", solid: true, opaque: false, layer: "cutout", tiles: [36, 36, 36], color: "#bfe6ff", hardness: 0.3 }),
 ];
 
 /** Blocks offered in the test hotbar, in slot order. */

@@ -147,6 +147,22 @@ export function createAtlasTexture(): THREE.CanvasTexture {
   { const [ox, oy] = tile(30); rect(ox, oy, 6, 3, 4, 4, "#c9c9c9"); rect(ox, oy, 7, 6, 2, 7, "#7b5836"); }
   { const [ox, oy] = tile(31); rect(ox, oy, 7, 2, 2, 8, "#d8d8d8"); rect(ox, oy, 5, 9, 6, 2, "#9a7b4c"); rect(ox, oy, 7, 11, 2, 3, "#7b5836"); }
 
+  // --- Block faces for crafting table / furnace / glass ------------------
+  // 32 crafting table top — planks with a crafting grid
+  speckle(32, "#b9925a", ["#a8824c", "#c49f66"]);
+  { const [ox, oy] = origin(32); ctx.strokeStyle = "#5e3f21"; ctx.strokeRect(ox + 2.5, oy + 2.5, 11, 11); ctx.beginPath(); ctx.moveTo(ox + 8, oy + 3); ctx.lineTo(ox + 8, oy + 13); ctx.moveTo(ox + 3, oy + 8); ctx.lineTo(ox + 13, oy + 8); ctx.stroke(); }
+  // 33 crafting table side — planks with tool silhouettes
+  speckle(33, "#9a6f3a", ["#8a6030", "#a87c44"]);
+  { const [ox, oy] = origin(33); rect(ox, oy, 3, 3, 4, 2, "#6e4d2c"); rect(ox, oy, 9, 9, 4, 3, "#6e4d2c"); }
+  // 34 furnace front — stone with a dark mouth
+  speckle(34, "#6b6b6b", ["#5c5c5c", "#787878"]);
+  { const [ox, oy] = origin(34); rect(ox, oy, 4, 5, 8, 7, "#2a2a2a"); rect(ox, oy, 6, 9, 4, 2, "#7a5a2a"); rect(ox, oy, 4, 2, 8, 2, "#565656"); }
+  // 35 furnace top/side — plain dressed stone
+  speckle(35, "#6f6f6f", ["#606060", "#7d7d7d"]);
+  { const [ox, oy] = origin(35); ctx.strokeStyle = "#525252"; ctx.strokeRect(ox + 1.5, oy + 1.5, 13, 13); }
+  // 36 glass — opaque frame, transparent centre (shader discards a<0.5)
+  { const [ox, oy] = tile(36); ctx.strokeStyle = "#dff1ff"; ctx.strokeRect(ox + 0.5, oy + 0.5, 15, 15); rect(ox, oy, 2, 2, 4, 1, "#ffffff"); rect(ox, oy, 11, 9, 3, 1, "#cfe9ff"); }
+
   const tex = new THREE.CanvasTexture(canvas);
   tex.magFilter = THREE.NearestFilter;
   tex.minFilter = THREE.NearestFilter;

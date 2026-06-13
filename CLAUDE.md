@@ -33,8 +33,13 @@ Minecraft-style browser voxel game. TypeScript + Three.js + Vite. Plain TS game 
 | `item/Item.ts` | Item registry (block-items, materials, tools) + block→drop table |
 | `item/ItemStack.ts` | Stack merge/split helpers (pure) |
 | `item/Inventory.ts` | 36-slot inventory (9 hotbar): add/remove/has/consume |
+| `item/Recipes.ts` | Shaped + shapeless crafting match + smelting/fuel tables (pure) |
+| `block/Furnace.ts` | Per-furnace smelting state + coord-keyed registry, ticked by the loop |
 | `entity/Entity.ts` | Entity base on `physics/aabb` (gravity + collision); mobs reuse it |
 | `entity/ItemDrop.ts` | Bobbing/spinning item-drop entity, proximity pickup |
+| `ui/ItemSlots.ts` | Drag Cursor + SlotGrid (pick/place/merge/split) used by the modals |
+| `ui/InventoryScreen.ts` | Modal inventory + 2×2/3×3 crafting grid (E, or a crafting table) |
+| `ui/FurnaceUI.ts` | Modal furnace: input/fuel/output + flame & progress gauges |
 | `ui/Hotbar.ts`, `ui/Hud.ts` | DOM hotbar (inventory row), crosshair, hearts/air, overlay |
 
 ## Conventions
@@ -52,4 +57,5 @@ Building toward a Minecraft Beta-level survival game in phases (see the plan).
 Done: **Phase 1** — caves, ores, biomes, bedrock, 128-tall chunks.
 Done: **Phase 2** — skylight + blocklight propagation, day/night cycle, placeable torches, fall damage, drowning, death/respawn, health + air HUD.
 Done: **Phase 3a** — item registry + drop table, 36-slot inventory, item-drop entities with pickup, hold-to-mine with hardness/tool-speed + crack overlay + harvest-tier gate, shared AABB physics.
-Next (3b): inventory screen + crafting (table) + furnace smelting; then mobs + combat + hunger; persistence.
+Done: **Phase 3b** — modal inventory + crafting (2×2 personal / 3×3 table), recipe registry (planks, sticks, table, tools, furnace, torches), furnace smelting with fuel, crafting table + furnace + glass blocks. Survival start (empty inventory).
+Next: mobs + combat + hunger (Phase 4); then persistence (Phase 5).
