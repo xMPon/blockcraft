@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { Chunk, CHUNK_Y } from "./Chunk";
 import { WorldGen } from "./WorldGen";
 import { meshChunk, type ChunkMaterials } from "./ChunkMesher";
+import { computeLight } from "./Lighting";
 
 export const RENDER_RADIUS = 6; // chunks meshed and visible
 // Generation (terrain + caves + ores) is the heavy work at 128-tall chunks, so
@@ -54,6 +55,17 @@ export class World {
     return chunk ? chunk.get(wx & 15, wy, wz & 15) : 0;
   }
 
+  /** Light at a world cell. Above the world is full sky; missing chunks are dark. */
+  getLight(wx: number, wy: number, wz: number): { sky: number; block: number } {
+    if (wy >= CHUNK_Y) return { sky: 15, block: 0 };
+    if (wy < 0) return { sky: 0, block: 0 };
+    const chunk = this.getChunk(wx >> 4, wz >> 4);
+    if (!chunk) return { sky: 0, block: 0 };
+    const lx = wx & 15;
+    const lz = wz & 15;
+    return { sky: chunk.getSky(lx, wy, lz), block: chunk.getBlockLight(lx, wy, lz) };
+  }
+
   setBlock(wx: number, wy: number, wz: number, id: number): void {
     if (wy < 0 || wy >= CHUNK_Y) return;
     const cx = wx >> 4;
@@ -61,14 +73,17 @@ export class World {
     const chunk = this.getChunk(cx, cz);
     if (!chunk) return;
     chunk.set(wx & 15, wy, wz & 15, id);
+    chunk.lit = false;
     this.dirty.add(World.key(cx, cz));
-    // A border edit changes which faces the neighbouring chunk must draw.
-    const lx = wx & 15;
-    const lz = wz & 15;
-    if (lx === 0) this.dirty.add(World.key(cx - 1, cz));
-    if (lx === 15) this.dirty.add(World.key(cx + 1, cz));
-    if (lz === 0) this.dirty.add(World.key(cx, cz - 1));
-    if (lz === 15) this.dirty.add(World.key(cx, cz + 1));
+    // An edit changes faces and light in the four neighbours too (light crosses
+    // chunk borders), so re-light and re-mesh them as well.
+    for (const [dx, dz] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) {
+      const n = this.getChunk(cx + dx, cz + dz);
+      if (n) {
+        n.lit = false;
+        this.dirty.add(World.key(cx + dx, cz + dz));
+      }
+    }
   }
 
   /** Per-frame streaming around the player position. */
@@ -109,16 +124,26 @@ export class World {
     if (old) this.disposeMeshes(old);
     const [cx, cz] = key.split(",").map(Number);
     const chunk = this.getOrCreateChunk(cx, cz);
-    // Ensure the four lateral neighbours exist so border faces mesh against
-    // real block data rather than air (generation is budgeted via the caller).
-    this.getOrCreateChunk(cx - 1, cz);
-    this.getOrCreateChunk(cx + 1, cz);
-    this.getOrCreateChunk(cx, cz - 1);
-    this.getOrCreateChunk(cx, cz + 1);
+    // Ensure the four lateral neighbours exist and are lit so border faces mesh
+    // against real block data and sample real light (generation is budgeted).
+    this.ensureLit(cx, cz);
+    this.ensureLit(cx - 1, cz);
+    this.ensureLit(cx + 1, cz);
+    this.ensureLit(cx, cz - 1);
+    this.ensureLit(cx, cz + 1);
     const m = meshChunk(this, chunk, this.materials);
     this.meshes.set(key, m);
     if (m.solid) this.scene.add(m.solid);
     if (m.water) this.scene.add(m.water);
+  }
+
+  // Generate and light a chunk if it isn't lit yet.
+  private ensureLit(cx: number, cz: number): void {
+    const chunk = this.getOrCreateChunk(cx, cz);
+    if (!chunk.lit) {
+      computeLight(this, chunk);
+      chunk.lit = true;
+    }
   }
 
   private disposeMeshes(m: ChunkMeshes): void {

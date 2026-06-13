@@ -41,6 +41,59 @@ canvas {
   pointer-events: none;
 }
 
+.status {
+  position: fixed;
+  left: 50%;
+  bottom: 70px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.stat-row {
+  display: flex;
+  gap: 2px;
+  justify-content: center;
+  height: 18px;
+}
+
+.heart {
+  position: relative;
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  font-size: 17px;
+  line-height: 18px;
+  text-shadow: 0 1px 1px #000;
+}
+
+.heart-bg {
+  position: absolute;
+  left: 0;
+  color: #43151a;
+}
+
+.heart-clip {
+  position: absolute;
+  left: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.heart-fg {
+  color: #ff3b3b;
+}
+
+.bubble {
+  color: #9fdcff;
+  font-size: 13px;
+  line-height: 18px;
+  text-shadow: 0 1px 1px #000;
+}
+
 .hotbar {
   position: fixed;
   left: 50%;

@@ -1,7 +1,7 @@
 // Player: first-person physics — axis-separated AABB collision against
 // voxels, gravity, jumping, and yaw/pitch mouse look.
 import * as THREE from "three";
-import { isSolid } from "../world/Block";
+import { isSolid, WATER } from "../world/Block";
 import type { World } from "../world/World";
 import type { Input } from "../core/Input";
 
@@ -14,6 +14,16 @@ const JUMP_SPEED = 8.5;
 const MOUSE_SENS = 0.0022;
 const EPS = 0.001;
 
+export const MAX_HEALTH = 20;
+const MAX_AIR = 10; // seconds of breath underwater
+const REGEN_INTERVAL = 3; // seconds per 1 HP passive heal (placeholder until hunger)
+const SAFE_FALL = 3; // blocks of fall absorbed before damage
+
+/** Fall damage in HP for a fall of `blocks` height. Pure — unit tested. */
+export function fallDamage(blocks: number): number {
+  return Math.max(0, Math.floor(blocks - SAFE_FALL));
+}
+
 export class Player {
   /** Feet position — the bottom centre of the AABB. */
   readonly position: THREE.Vector3;
@@ -22,11 +32,25 @@ export class Player {
   pitch = 0;
   onGround = false;
 
+  health = MAX_HEALTH;
+  air = MAX_AIR;
+  readonly maxHealth = MAX_HEALTH;
+  readonly maxAir = MAX_AIR;
+  submerged = false;
+
+  private readonly spawn: THREE.Vector3;
+  private fallPeak: number;
+  private drownTimer = 0;
+  private regenTimer = 0;
+
   constructor(x: number, y: number, z: number) {
     this.position = new THREE.Vector3(x, y, z);
+    this.spawn = new THREE.Vector3(x, y, z);
+    this.fallPeak = y;
   }
 
   update(dt: number, input: Input, world: World): void {
+    const wasOnGround = this.onGround;
     if (input.locked) {
       const { dx, dy } = input.consumeMouseDelta();
       this.yaw -= dx * MOUSE_SENS;
@@ -64,6 +88,65 @@ export class Player {
     this.collideAxis(world, 0, this.velocity.x * dt);
     this.collideAxis(world, 2, this.velocity.z * dt);
     this.collideAxis(world, 1, this.velocity.y * dt);
+
+    this.applySurvival(dt, wasOnGround, world);
+  }
+
+  // Fall damage on landing, drowning while submerged, slow passive regen, and
+  // respawn on death. Hunger (Phase 4) will later gate the regen.
+  private applySurvival(dt: number, wasOnGround: boolean, world: World): void {
+    if (this.onGround) {
+      if (!wasOnGround) this.hurt(fallDamage(this.fallPeak - this.position.y));
+      this.fallPeak = this.position.y;
+    } else {
+      this.fallPeak = Math.max(this.fallPeak, this.position.y);
+    }
+
+    const head = world.getBlock(
+      Math.floor(this.position.x),
+      Math.floor(this.position.y + 1.6),
+      Math.floor(this.position.z),
+    );
+    this.submerged = head === WATER;
+    if (this.submerged) {
+      this.air -= dt;
+      if (this.air <= 0) {
+        this.air = 0;
+        this.drownTimer += dt;
+        if (this.drownTimer >= 1) {
+          this.hurt(2);
+          this.drownTimer -= 1;
+        }
+      }
+    } else {
+      this.air = this.maxAir;
+      this.drownTimer = 0;
+    }
+
+    if (this.health > 0 && this.health < this.maxHealth) {
+      this.regenTimer += dt;
+      if (this.regenTimer >= REGEN_INTERVAL) {
+        this.health = Math.min(this.maxHealth, this.health + 1);
+        this.regenTimer -= REGEN_INTERVAL;
+      }
+    } else {
+      this.regenTimer = 0;
+    }
+
+    if (this.health <= 0) this.respawn();
+  }
+
+  hurt(amount: number): void {
+    if (amount > 0) this.health = Math.max(0, this.health - amount);
+  }
+
+  private respawn(): void {
+    this.position.copy(this.spawn);
+    this.velocity.set(0, 0, 0);
+    this.health = this.maxHealth;
+    this.air = this.maxAir;
+    this.drownTimer = 0;
+    this.fallPeak = this.spawn.y;
   }
 
   /** Eye-level view direction derived from yaw/pitch. */

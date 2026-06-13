@@ -4,6 +4,8 @@ import * as THREE from "three";
 import "./style.css";
 import { Engine } from "./core/Engine";
 import { Input } from "./core/Input";
+import { Sky } from "./core/Sky";
+import { createChunkMaterials } from "./core/ChunkMaterial";
 import { World, RENDER_RADIUS } from "./world/World";
 import { WorldGen } from "./world/WorldGen";
 import { createAtlasTexture } from "./world/TextureAtlas";
@@ -16,23 +18,23 @@ import { Hud } from "./ui/Hud";
 
 const SEED = 1337;
 const REACH = 6;
+const VIEW_DISTANCE = RENDER_RADIUS * CHUNK_X;
 
 const app = document.getElementById("app")!;
-const engine = new Engine(app, RENDER_RADIUS * CHUNK_X);
+const engine = new Engine(app, VIEW_DISTANCE);
 const input = new Input(engine.renderer.domElement);
+const sky = new Sky();
 
 const atlas = createAtlasTexture();
-const world = new World(new WorldGen(SEED), engine.scene, {
-  solid: new THREE.MeshBasicMaterial({ map: atlas, vertexColors: true }),
-  water: new THREE.MeshBasicMaterial({
-    map: atlas,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.75,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-  }),
-});
+const materials = createChunkMaterials(atlas, VIEW_DISTANCE);
+const world = new World(new WorldGen(SEED), engine.scene, materials);
+
+// Sun disc that arcs across the sky; unfogged so it stays visible at the horizon.
+const sun = new THREE.Mesh(
+  new THREE.SphereGeometry(6, 12, 12),
+  new THREE.MeshBasicMaterial({ color: 0xfff2c0, fog: false }),
+);
+engine.scene.add(sun);
 
 // Pre-generate the spawn area so the player lands on solid ground frame one
 // (player physics runs before world streaming in the loop below).
@@ -52,6 +54,14 @@ engine.scene.add(highlight);
 
 engine.start((dt) => {
   hud.setOverlayVisible(!input.locked);
+
+  // Advance the day/night cycle and push it into the sky + chunk shader.
+  sky.update(dt);
+  (engine.scene.background as THREE.Color).copy(sky.color);
+  materials.uFogColor.value.copy(sky.color);
+  materials.uDayFactor.value = sky.dayFactor;
+  sun.position.copy(player.position).addScaledVector(sky.sunDirection, VIEW_DISTANCE * 1.1);
+
   player.update(dt, input, world);
   world.update(player.position.x, player.position.z);
 
@@ -86,8 +96,8 @@ engine.start((dt) => {
   }
 
   player.syncCamera(engine.camera);
-  hud.update(player.position.x, player.position.y, player.position.z);
+  hud.update(player.position.x, player.position.y, player.position.z, player.health, player.air, player.maxAir);
 });
 
 // Debug handle for headless verification (drive streaming/render from devtools).
-(window as unknown as { __bc: unknown }).__bc = { engine, world, player, input, hud };
+(window as unknown as { __bc: unknown }).__bc = { engine, world, player, input, hud, sky, materials, sun };

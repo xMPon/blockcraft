@@ -19,6 +19,7 @@ export const IRON_ORE = 14;
 export const GOLD_ORE = 15;
 export const DIAMOND_ORE = 16;
 export const REDSTONE_ORE = 17;
+export const TORCH = 18;
 
 /** Which geometry bucket a block meshes into. */
 export type MeshLayer = "solid" | "cutout" | "water";
@@ -90,10 +91,12 @@ export const BLOCKS: BlockDef[] = [
   def({ id: GOLD_ORE, name: "gold ore", tiles: [16, 16, 16], color: "#e6c558", hardness: 3, tool: "pickaxe", minTier: TIER_IRON }),
   def({ id: DIAMOND_ORE, name: "diamond ore", tiles: [17, 17, 17], color: "#52d9d0", hardness: 3, tool: "pickaxe", minTier: TIER_IRON }),
   def({ id: REDSTONE_ORE, name: "redstone ore", tiles: [18, 18, 18], color: "#c83a2a", hardness: 3, tool: "pickaxe", minTier: TIER_IRON }),
+  // Torch: a non-solid thin-pillar emitter (see ChunkMesher's torch path).
+  def({ id: TORCH, name: "torch", solid: false, opaque: false, layer: "cutout", tiles: [19, 19, 19], color: "#ffcf57", hardness: 0, light: 14 }),
 ];
 
 /** Blocks offered in the test hotbar, in slot order. */
-export const PLACEABLE: number[] = [GRASS, DIRT, STONE, COBBLESTONE, PLANKS, SAND, WOOD, LEAVES];
+export const PLACEABLE: number[] = [GRASS, DIRT, STONE, COBBLESTONE, PLANKS, TORCH, SAND, LEAVES];
 
 export function isSolid(id: number): boolean {
   return BLOCKS[id].solid;

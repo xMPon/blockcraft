@@ -9,7 +9,7 @@ const TILE_PX = 16;
 // Tile layout (index → meaning):
 // 0 grass top, 1 grass side, 2 dirt, 3 stone, 4 sand, 5 log side, 6 log top,
 // 7 leaves, 8 water, 9 bedrock, 10 cobblestone, 11 planks, 12 gravel, 13 lava,
-// 14 coal ore, 15 iron ore, 16 gold ore, 17 diamond ore, 18 redstone ore.
+// 14 coal ore, 15 iron ore, 16 gold ore, 17 diamond ore, 18 redstone ore, 19 torch.
 
 /** UV window for a tile: [u0, v0, u1, v1] with v0 at the tile's bottom edge. */
 export function tileUV(tile: number): [number, number, number, number] {
@@ -101,6 +101,19 @@ export function createAtlasTexture(): THREE.CanvasTexture {
   ore(16, "#f2d65a", "#c9a93a"); // gold
   ore(17, "#52d9d0", "#2fa8a0"); // diamond
   ore(18, "#d23a2a", "#8a1f15"); // redstone
+
+  // torch — transparent tile with a centered stick + glowing flame
+  {
+    const [ox, oy] = origin(19);
+    ctx.clearRect(ox, oy, TILE_PX, TILE_PX);
+    ctx.fillStyle = "#6e4d2c"; // stick
+    ctx.fillRect(ox + 7, oy + 6, 2, 9);
+    ctx.fillStyle = "#ffcf57"; // flame core
+    ctx.fillRect(ox + 6, oy + 3, 4, 4);
+    ctx.fillStyle = "#ff8c2a"; // flame edge
+    ctx.fillRect(ox + 7, oy + 2, 2, 1);
+    ctx.fillRect(ox + 6, oy + 6, 4, 1);
+  }
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.magFilter = THREE.NearestFilter;

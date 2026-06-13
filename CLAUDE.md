@@ -17,13 +17,16 @@ Minecraft-style browser voxel game. TypeScript + Three.js + Vite. Plain TS game 
 | `core/Engine.ts` | Three.js scene/camera/renderer, resize, RAF loop with clamped dt |
 | `core/Input.ts` | Pointer lock, keyboard state, accumulated mouse deltas and clicks |
 | `core/rng.ts` | mulberry32 PRNG + integer hash — all determinism flows through here |
+| `core/Sky.ts` | Day/night clock → sky colour, day-light factor, sun direction |
+| `core/ChunkMaterial.ts` | ShaderMaterial pair (opaque + water): bakes voxel light × day factor, manual fog |
 | `world/Block.ts` | Block registry: ids, solid/opaque/layer flags, atlas tiles, hardness/tool/tier/light metadata |
-| `world/Chunk.ts` | 16×128×16 voxels in a flat `Uint8Array` |
+| `world/Chunk.ts` | 16×128×16 voxels + skylight + blocklight in parallel flat `Uint8Array`s |
 | `world/WorldGen.ts` | Seeded terrain: biomes, layered surface, 3D-noise caves, depth-banded ore veins, bedrock floor, sea-level water, trees |
-| `world/ChunkMesher.ts` | Culled-face meshing → opaque + water `BufferGeometry` per chunk |
-| `world/World.ts` | Chunk map, world-coord block access, streaming + mesh lifecycle |
+| `world/Lighting.ts` | Per-chunk skylight + blocklight BFS; borders pull from lit neighbours (DOM-free) |
+| `world/ChunkMesher.ts` | Culled-face meshing → opaque + water geometry; bakes per-vertex `aLight`; torch thin-pillar path |
+| `world/World.ts` | Chunk map, world-coord block + light access, streaming, lighting + mesh lifecycle |
 | `world/TextureAtlas.ts` | Procedural 8×8 canvas atlas, 16px tiles, NearestFilter |
-| `player/Player.ts` | AABB physics (axis-separated voxel collision), mouse look |
+| `player/Player.ts` | AABB physics, mouse look, survival (health/air, fall damage, drowning, respawn) |
 | `player/Raycast.ts` | Amanatides–Woo voxel DDA — pure, no three.js |
 | `ui/Hotbar.ts`, `ui/Hud.ts` | DOM hotbar, crosshair, debug overlay, click-to-play overlay |
 
@@ -40,4 +43,5 @@ Minecraft-style browser voxel game. TypeScript + Three.js + Vite. Plain TS game 
 
 Building toward a Minecraft Beta-level survival game in phases (see the plan).
 Done: **Phase 1** — caves, ores, biomes, bedrock, 128-tall chunks.
-Next: lighting + day/night + survival physics; items/crafting/smelting; mobs + combat + hunger; persistence.
+Done: **Phase 2** — skylight + blocklight propagation, day/night cycle, placeable torches, fall damage, drowning, death/respawn, health + air HUD.
+Next: items/drops/hold-to-mine; inventory/crafting/smelting; mobs + combat + hunger; persistence.

@@ -1,9 +1,10 @@
-// ChunkMesher: culled-face meshing. Emits one opaque and one transparent
-// (water) BufferGeometry per chunk, with per-face directional shading baked
-// into vertex colours — the classic flat-lit Minecraft look, no scene lights.
+// ChunkMesher: culled-face meshing. Emits one opaque and one water
+// BufferGeometry per chunk. Per-face directional shading is baked into vertex
+// colours; per-vertex skylight/blocklight (sampled from the neighbour the face
+// faces) is baked into an `aLight` attribute the ChunkMaterial reads.
 import * as THREE from "three";
 import { Chunk, CHUNK_X, CHUNK_Y, CHUNK_Z } from "./Chunk";
-import { AIR, BLOCKS, isOpaque, meshLayer } from "./Block";
+import { AIR, BLOCKS, TORCH, isOpaque, meshLayer } from "./Block";
 import { tileUV } from "./TextureAtlas";
 
 export interface ChunkMaterials {
@@ -11,14 +12,15 @@ export interface ChunkMaterials {
   water: THREE.Material;
 }
 
-/** Minimal world view the mesher needs — lets it sample across chunk borders. */
+/** Minimal world view the mesher needs — block ids and light across borders. */
 export interface BlockSource {
   getBlock(wx: number, wy: number, wz: number): number;
+  getLight(wx: number, wy: number, wz: number): { sky: number; block: number };
 }
 
 interface FaceSpec {
   dir: [number, number, number];
-  /** Corner offsets, counter-clockwise seen from outside, bottom edge first. */
+  /** Corner offsets (0/1 per axis), counter-clockwise from outside. */
   corners: [number, number, number][];
   shade: number;
 }
@@ -34,22 +36,30 @@ const FACES: FaceSpec[] = [
 
 class GeometryBuilder {
   private positions: number[] = [];
-  private normals: number[] = [];
   private uvs: number[] = [];
   private colors: number[] = [];
+  private lights: number[] = [];
   private indices: number[] = [];
 
-  quad(x: number, y: number, z: number, face: FaceSpec, tiles: [number, number, number]): void {
-    const tile = face.dir[1] === 1 ? tiles[0] : face.dir[1] === -1 ? tiles[2] : tiles[1];
+  // A single quad of an axis-aligned box spanning [min,max] within the cell.
+  quad(
+    ox: number, oy: number, oz: number,
+    min: [number, number, number], max: [number, number, number],
+    face: FaceSpec, tile: number, sky: number, block: number,
+  ): void {
     const [u0, v0, u1, v1] = tileUV(tile);
     const uvCorners = [[u0, v0], [u1, v0], [u1, v1], [u0, v1]];
     const base = this.positions.length / 3;
     for (let i = 0; i < 4; i++) {
       const c = face.corners[i];
-      this.positions.push(x + c[0], y + c[1], z + c[2]);
-      this.normals.push(face.dir[0], face.dir[1], face.dir[2]);
+      this.positions.push(
+        ox + (c[0] ? max[0] : min[0]),
+        oy + (c[1] ? max[1] : min[1]),
+        oz + (c[2] ? max[2] : min[2]),
+      );
       this.uvs.push(uvCorners[i][0], uvCorners[i][1]);
       this.colors.push(face.shade, face.shade, face.shade);
+      this.lights.push(sky / 15, block / 15);
     }
     this.indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
   }
@@ -58,12 +68,20 @@ class GeometryBuilder {
     if (this.indices.length === 0) return null;
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(this.positions, 3));
-    g.setAttribute("normal", new THREE.Float32BufferAttribute(this.normals, 3));
     g.setAttribute("uv", new THREE.Float32BufferAttribute(this.uvs, 2));
     g.setAttribute("color", new THREE.Float32BufferAttribute(this.colors, 3));
+    g.setAttribute("aLight", new THREE.Float32BufferAttribute(this.lights, 2));
     g.setIndex(this.indices);
     return g;
   }
+}
+
+const CUBE_MIN: [number, number, number] = [0, 0, 0];
+const CUBE_MAX: [number, number, number] = [1, 1, 1];
+
+function tileFor(id: number, dir: [number, number, number]): number {
+  const t = BLOCKS[id].tiles;
+  return dir[1] === 1 ? t[0] : dir[1] === -1 ? t[2] : t[1];
 }
 
 export function meshChunk(
@@ -81,20 +99,28 @@ export function meshChunk(
       for (let x = 0; x < CHUNK_X; x++) {
         const id = chunk.get(x, y, z);
         if (id === AIR) continue;
+        const wx = baseX + x;
+        const wz = baseZ + z;
+
+        if (id === TORCH) {
+          emitTorch(solidBuilder, source, wx, y, wz);
+          continue;
+        }
+
         const isWater = meshLayer(id) === "water";
         const builder = isWater ? waterBuilder : solidBuilder;
 
         for (const face of FACES) {
-          const nb = source.getBlock(
-            baseX + x + face.dir[0],
-            y + face.dir[1],
-            baseZ + z + face.dir[2],
-          );
-          // Water only faces air. Everything else faces any non-opaque
-          // neighbour, but skips boundaries shared with the same block id so
-          // adjacent leaves (and later glass) don't draw internal faces.
+          const nx = wx + face.dir[0];
+          const ny = y + face.dir[1];
+          const nz = wz + face.dir[2];
+          const nb = source.getBlock(nx, ny, nz);
+          // Water faces air only; everything else faces any non-opaque
+          // neighbour, skipping same-id boundaries (adjacent leaves/glass).
           const visible = isWater ? nb === AIR : !isOpaque(nb) && nb !== id;
-          if (visible) builder.quad(baseX + x, y, baseZ + z, face, BLOCKS[id].tiles);
+          if (!visible) continue;
+          const l = source.getLight(nx, ny, nz);
+          builder.quad(wx, y, wz, CUBE_MIN, CUBE_MAX, face, tileFor(id, face.dir), l.sky, l.block);
         }
       }
     }
@@ -106,4 +132,14 @@ export function meshChunk(
     solid: solidGeo ? new THREE.Mesh(solidGeo, materials.solid) : null,
     water: waterGeo ? new THREE.Mesh(waterGeo, materials.water) : null,
   };
+}
+
+// A torch renders as a thin emissive pillar, lit by its own cell's light.
+function emitTorch(builder: GeometryBuilder, source: BlockSource, wx: number, wy: number, wz: number): void {
+  const min: [number, number, number] = [0.42, 0, 0.42];
+  const max: [number, number, number] = [0.58, 0.62, 0.58];
+  const l = source.getLight(wx, wy, wz);
+  for (const face of FACES) {
+    builder.quad(wx, wy, wz, min, max, face, 19 /* torch tile */, l.sky, Math.max(l.block, 14));
+  }
 }
