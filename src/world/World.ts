@@ -22,11 +22,15 @@ export class World {
   private readonly chunks = new Map<string, Chunk>();
   private readonly meshes = new Map<string, ChunkMeshes>();
   private readonly dirty = new Set<string>();
+  /** Chunks changed by the player (setBlock) — the set saved to disk. */
+  readonly modified = new Set<string>();
 
   constructor(
     readonly gen: WorldGen,
     private readonly scene: THREE.Scene,
     private readonly materials: ChunkMaterials,
+    /** Saved per-chunk block diffs overlaid after generation. */
+    private readonly overrides?: Map<string, Uint8Array>,
   ) {}
 
   private static key(cx: number, cz: number): string {
@@ -43,9 +47,25 @@ export class World {
     if (!chunk) {
       chunk = new Chunk(cx, cz);
       this.gen.generate(chunk);
+      // Overlay the player's saved edits for this chunk, if any.
+      const override = this.overrides?.get(key);
+      if (override) {
+        chunk.data.set(override);
+        this.modified.add(key);
+      }
       this.chunks.set(key, chunk);
     }
     return chunk;
+  }
+
+  /** Snapshot of every player-modified chunk, for saving. */
+  collectModified(): { cx: number; cz: number; data: Uint8Array }[] {
+    const out: { cx: number; cz: number; data: Uint8Array }[] = [];
+    for (const key of this.modified) {
+      const chunk = this.chunks.get(key);
+      if (chunk) out.push({ cx: chunk.cx, cz: chunk.cz, data: chunk.data });
+    }
+    return out;
   }
 
   /** World-coordinate read; missing chunks and out-of-range y read as air. */
@@ -74,6 +94,7 @@ export class World {
     if (!chunk) return;
     chunk.set(wx & 15, wy, wz & 15, id);
     chunk.lit = false;
+    this.modified.add(World.key(cx, cz));
     this.dirty.add(World.key(cx, cz));
     // An edit changes faces and light in the four neighbours too (light crosses
     // chunk borders), so re-light and re-mesh them as well.

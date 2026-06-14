@@ -3,6 +3,7 @@
 // burns fuel to cook a smeltable input into its output over COOK_TIME.
 import { COOK_TIME, smeltResult, fuelValue } from "../item/Recipes";
 import { maxStack, type ItemStack } from "../item/ItemStack";
+import type { FurnaceSave } from "../persist/Store";
 
 export class FurnaceState {
   input: ItemStack | null = null;
@@ -85,5 +86,26 @@ export class Furnaces {
 
   tick(dt: number): void {
     for (const s of this.map.values()) s.tick(dt);
+  }
+
+  serialize(): FurnaceSave[] {
+    const out: FurnaceSave[] = [];
+    for (const [key, s] of this.map) {
+      out.push({ key, input: s.input, fuel: s.fuel, output: s.output, burn: s.burn, burnMax: s.burnMax, cook: s.cook });
+    }
+    return out;
+  }
+
+  restore(entries: FurnaceSave[]): void {
+    for (const e of entries) {
+      const s = new FurnaceState();
+      s.input = e.input;
+      s.fuel = e.fuel;
+      s.output = e.output;
+      s.burn = e.burn;
+      s.burnMax = e.burnMax;
+      s.cook = e.cook;
+      this.map.set(e.key, s);
+    }
   }
 }

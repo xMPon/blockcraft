@@ -18,7 +18,9 @@ Minecraft-style browser voxel game. TypeScript + Three.js + Vite. Plain TS game 
 | `core/Input.ts` | Pointer lock, keyboard state, accumulated mouse deltas and clicks |
 | `core/rng.ts` | mulberry32 PRNG + integer hash — all determinism flows through here |
 | `core/Sky.ts` | Day/night clock → sky colour, day-light factor, sun direction |
+| `core/Sound.ts` | Procedural WebAudio SFX (break/place/hurt/eat) — no asset files |
 | `core/ChunkMaterial.ts` | ShaderMaterial pair (opaque + water): bakes voxel light × day factor, manual fog |
+| `persist/Store.ts` | IndexedDB save/load: meta (seed, player, inventory, time, furnaces) + per-chunk block diffs |
 | `world/Block.ts` | Block registry: ids, solid/opaque/layer flags, atlas tiles, hardness/tool/tier/light metadata |
 | `world/Chunk.ts` | 16×128×16 voxels + skylight + blocklight in parallel flat `Uint8Array`s |
 | `world/WorldGen.ts` | Seeded terrain: biomes, layered surface, 3D-noise caves, depth-banded ore veins, bedrock floor, sea-level water, trees |
@@ -45,7 +47,8 @@ Minecraft-style browser voxel game. TypeScript + Three.js + Vite. Plain TS game 
 | `ui/ItemSlots.ts` | Drag Cursor + SlotGrid (pick/place/merge/split) used by the modals |
 | `ui/InventoryScreen.ts` | Modal inventory + 2×2/3×3 crafting grid (E, or a crafting table) |
 | `ui/FurnaceUI.ts` | Modal furnace: input/fuel/output + flame & progress gauges |
-| `ui/Hotbar.ts`, `ui/Hud.ts` | DOM hotbar (inventory row), crosshair, hearts/air, overlay |
+| `ui/Hotbar.ts`, `ui/Hud.ts` | DOM hotbar (inventory row), crosshair, hearts/air/hunger, overlay |
+| `ui/PauseMenu.ts` | Esc menu / title: resume, save, new world (shows seed) |
 
 ## Conventions
 
@@ -58,10 +61,11 @@ Minecraft-style browser voxel game. TypeScript + Three.js + Vite. Plain TS game 
 
 ## Roadmap
 
-Building toward a Minecraft Beta-level survival game in phases (see the plan).
+A Minecraft Beta-level browser survival game — all five planned phases shipped.
 Done: **Phase 1** — caves, ores, biomes, bedrock, 128-tall chunks.
 Done: **Phase 2** — skylight + blocklight propagation, day/night cycle, placeable torches, fall damage, drowning, death/respawn, health + air HUD.
 Done: **Phase 3a** — item registry + drop table, 36-slot inventory, item-drop entities with pickup, hold-to-mine with hardness/tool-speed + crack overlay + harvest-tier gate, shared AABB physics.
 Done: **Phase 3b** — modal inventory + crafting (2×2 personal / 3×3 table), recipe registry (planks, sticks, table, tools, furnace, torches), furnace smelting with fuel, crafting table + furnace + glass blocks. Survival start (empty inventory).
 Done: **Phase 4** — 7 mobs with AI (passive wander/flee, hostile seek/attack, creeper explosion), light/time-gated spawning, melee combat both ways (knockback + i-frames + hit flash), hunger bar (eat food, regen/starvation), sprint, mob loot + cookable meats. Swimming added (buoyancy + swim-up).
-Next: persistence — world + inventory save/load (Phase 5); perf pass; polish.
+Done: **Phase 5** — IndexedDB save/load (world diffs + player + inventory + time + furnaces; auto-save + on-exit), pause/new-world menu, procedural sound.
+Remaining polish (optional, not started): web-worker meshing perf pass, skeleton + arrows (ranged mob), greedy meshing, flowing water.

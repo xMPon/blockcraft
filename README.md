@@ -11,7 +11,8 @@ A Minecraft-style voxel sandbox that runs in the browser. TypeScript + Three.js,
 - Hotbar + full inventory, crafting grid (2×2 / 3×3 table), furnace smelting
 - Survival: health, hunger, fall damage, drowning, swimming, day/night
 - Mobs with AI — passive animals + hostile zombie/spider/creeper, melee combat
-- Procedurally drawn texture atlas — zero art assets
+- World + inventory save/load (IndexedDB) — survives a refresh; auto-saves
+- Procedurally drawn texture atlas + WebAudio sound — zero art/audio assets
 
 ## Run
 
@@ -25,14 +26,14 @@ npm run dev    # http://localhost:5173
 | Input | Action |
 |---|---|
 | Click | Capture mouse (pointer lock) |
-| WASD | Move |
+| WASD (double-tap W) | Move (sprint) |
 | Mouse | Look |
 | Space | Jump / swim up |
-| Left click (hold) | Mine block |
-| Right click | Place block / open table or furnace |
+| Left click (hold) | Mine block / attack mob |
+| Right click | Place block · open table/furnace · eat food |
 | E | Open inventory + crafting |
 | 1–9 / mouse wheel | Select hotbar slot |
-| Esc | Release mouse / close screen |
+| Esc | Pause menu (save / new world) / close screen |
 
 ## Tests
 
@@ -40,18 +41,18 @@ npm run dev    # http://localhost:5173
 npm test
 ```
 
-Unit tests cover chunk index math, the voxel DDA raycast, and worldgen determinism.
+Unit tests (58) cover chunk math, raycast, worldgen, lighting, mining/drops,
+crafting/smelting, combat/hunger/spawning, and save serialization.
 
 ## Manual smoke checklist
 
-- Walk and jump; collision stops you at terrain
-- Look around under pointer lock
-- Break a block (left click) — it disappears and exposed faces render
-- Place each hotbar block type (right click)
-- Walk toward the horizon — new chunks stream in, far ones unload
+- Punch a tree → craft planks → table → tools; mine stone and ores
+- Build a furnace, smelt iron ore and cook meat
+- Dig into a dark cave, place torches to light it
+- Survive nightfall — fight zombies/spiders/creepers; keep the hunger bar up
+- Place a block, refresh the page — your edits and inventory are still there
 
 ## Future work
 
-- Greedy meshing and web-worker chunk meshing
-- World persistence (IndexedDB)
+- Skeleton + arrows (ranged mob), greedy + web-worker meshing, flowing water
 - Day-night cycle, inventory, survival mechanics

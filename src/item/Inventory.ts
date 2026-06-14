@@ -61,4 +61,17 @@ export class Inventory {
     s.count -= 1;
     if (s.count <= 0) this.slots[this.selected] = null;
   }
+
+  /** Plain-object snapshot of every slot for saving. */
+  serialize(): (ItemStack | null)[] {
+    return this.slots.map((s) => (s ? { item: s.item, count: s.count } : null));
+  }
+
+  /** Restore slots from a saved snapshot. */
+  load(slots: (ItemStack | null)[]): void {
+    for (let i = 0; i < this.slots.length; i++) {
+      const s = slots[i];
+      this.slots[i] = s ? { item: s.item, count: s.count } : null;
+    }
+  }
 }
