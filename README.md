@@ -8,7 +8,9 @@ A Minecraft-style voxel sandbox that runs in the browser. TypeScript + Three.js,
 - Chunked world (16×64×16 chunks) with culled-face meshing and baked directional shading
 - First-person physics: AABB voxel collision, gravity, jumping
 - Break and place blocks via voxel DDA raycast, with a wireframe target highlight
-- Hotbar block selection, crosshair, FPS/position debug overlay
+- Hotbar + full inventory, crafting grid (2×2 / 3×3 table), furnace smelting
+- Survival: health, hunger, fall damage, drowning, swimming, day/night
+- Mobs with AI — passive animals + hostile zombie/spider/creeper, melee combat
 - Procedurally drawn texture atlas — zero art assets
 
 ## Run

@@ -16,7 +16,12 @@ import { raycastVoxel } from "./player/Raycast";
 import { Inventory } from "./item/Inventory";
 import { itemDef, blockDrop } from "./item/Item";
 import { MiningState, toolOf, canHarvest } from "./player/Mining";
+import { attackDamage, PLAYER_REACH } from "./player/Combat";
+import { Hunger } from "./player/Hunger";
 import { ItemDrop } from "./entity/ItemDrop";
+import { Mob } from "./entity/Mob";
+import { PASSIVE_MOBS, HOSTILE_MOBS, ZOMBIE, CREEPER } from "./entity/MobTypes";
+import { Spawner } from "./entity/Spawner";
 import { Furnaces } from "./block/Furnace";
 import { Hotbar } from "./ui/Hotbar";
 import { Hud } from "./ui/Hud";
@@ -71,8 +76,38 @@ window.addEventListener("keydown", (e) => {
 });
 
 const mining = new MiningState();
+const hunger = new Hunger();
 const drops: ItemDrop[] = [];
+const mobs: Mob[] = [];
+const spawner = new Spawner();
 const dropMaterial = new THREE.MeshBasicMaterial({ map: atlas, alphaTest: 0.5 });
+
+// Mobs damage the player through this; knockback comes from the mob's position.
+const mobCtx = {
+  playerPos: player.position,
+  damagePlayer: (amount: number, fromX: number, fromZ: number) => player.hurtFrom(amount, fromX, fromZ),
+};
+
+// The mob the player is aiming at within melee reach (cylinder along the look ray).
+function pickTargetMob(): Mob | null {
+  const dir = player.direction();
+  const ex = player.position.x;
+  const ey = player.position.y + EYE_HEIGHT;
+  const ez = player.position.z;
+  let best: Mob | null = null;
+  let bestT = PLAYER_REACH;
+  for (const mob of mobs) {
+    const my = mob.position.y + mob.height * 0.5;
+    const t = (mob.position.x - ex) * dir.x + (my - ey) * dir.y + (mob.position.z - ez) * dir.z;
+    if (t < 0 || t > PLAYER_REACH) continue;
+    const px = ex + dir.x * t;
+    const py = ey + dir.y * t;
+    const pz = ez + dir.z * t;
+    const perp = Math.hypot(mob.position.x - px, my - py, mob.position.z - pz);
+    if (perp < mob.halfW + 0.5 && t < bestT) { best = mob; bestT = t; }
+  }
+  return best;
+}
 
 // Wireframe box around the raycast-targeted block.
 const highlight = new THREE.LineSegments(
@@ -133,11 +168,14 @@ engine.start((dt) => {
   highlight.visible = hit !== null;
   if (hit) highlight.position.set(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
 
-  // Hold left mouse to mine the targeted block. The right tool tier gates the
-  // drop; correct tools break faster (see Mining).
+  // A mob in the crosshair takes priority over mining (you swing at it instead).
+  const targetMob = paused ? null : pickTargetMob();
+
+  // Hold left mouse to mine the targeted block (unless aiming at a mob). The
+  // right tool tier gates the drop; correct tools break faster (see Mining).
   const tool = toolOf(inventory.selectedStack);
   const targetId = hit ? world.getBlock(hit.x, hit.y, hit.z) : AIR;
-  const broke = mining.update(!paused && input.isMouseDown(0), hit, targetId, tool, dt);
+  const broke = mining.update(!paused && !targetMob && input.isMouseDown(0), hit, targetId, tool, dt);
   if (broke && hit) {
     const drop = blockDrop(targetId);
     if (drop !== null && canHarvest(targetId, tool)) spawnDrop(hit.x, hit.y, hit.z, drop, 1);
@@ -146,6 +184,7 @@ engine.start((dt) => {
       for (const s of furnaces.remove(hit.x, hit.y, hit.z)) spawnDrop(hit.x, hit.y, hit.z, s.item, s.count);
     }
     world.setBlock(hit.x, hit.y, hit.z, AIR);
+    hunger.addExhaustion(0.05);
   }
 
   // Crack overlay tracks the mining target.
@@ -157,15 +196,28 @@ engine.start((dt) => {
     crack.visible = false;
   }
 
-  // Right-click opens a crafting table / furnace, otherwise places the held block.
+  // Clicks: left swings at a targeted mob; right eats food, opens a table /
+  // furnace, or places the held block.
   if (!paused) {
     for (const button of input.consumeClicks()) {
-      if (button !== 2 || !hit) continue;
+      if (button === 0) {
+        if (targetMob && targetMob.hurt(attackDamage(inventory.selectedStack), player.position.x, player.position.z)) {
+          hunger.addExhaustion(0.1);
+        }
+        continue;
+      }
+      if (button !== 2) continue;
+      const sel = inventory.selectedStack;
+      if (sel && itemDef(sel.item).food && hunger.value < hunger.max) {
+        hunger.eat(itemDef(sel.item).food!);
+        inventory.consumeSelected();
+        continue;
+      }
+      if (!hit) continue;
       const tb = world.getBlock(hit.x, hit.y, hit.z);
       if (tb === CRAFTING_TABLE) { inventoryScreen.open(true); document.exitPointerLock(); break; }
       if (tb === FURNACE) { furnaceUI.open(furnaces.getOrCreate(hit.x, hit.y, hit.z)); document.exitPointerLock(); break; }
-      const stack = inventory.selectedStack;
-      const place = stack ? itemDef(stack.item).placeBlock : undefined;
+      const place = sel ? itemDef(sel.item).placeBlock : undefined;
       if (place === undefined) continue;
       const px = hit.x + hit.face[0];
       const py = hit.y + hit.face[1];
@@ -176,6 +228,32 @@ engine.start((dt) => {
         inventory.consumeSelected();
       }
     }
+  }
+
+  // Mobs: spawn, run AI + physics, despawn the distant ones, drop loot on death.
+  if (!paused) {
+    spawner.update(dt, world, player.position, sky.dayFactor, mobs, (m) => {
+      mobs.push(m);
+      engine.scene.add(m.object3d);
+    });
+  }
+  for (const mob of mobs) {
+    if (!paused) {
+      mob.aiStep(dt, world, mobCtx);
+      if (mob.position.distanceTo(player.position) > 70) mob.dead = true;
+    }
+    mob.update(dt, world);
+  }
+  for (let i = mobs.length - 1; i >= 0; i--) {
+    const mob = mobs[i];
+    if (!mob.dead) continue;
+    if (mob.health <= 0) {
+      for (const l of mob.rollLoot()) {
+        spawnDrop(Math.floor(mob.position.x), Math.floor(mob.position.y), Math.floor(mob.position.z), l.item, l.count);
+      }
+    }
+    engine.scene.remove(mob.object3d);
+    mobs.splice(i, 1);
   }
 
   // Update item drops; collect any the player reaches.
@@ -194,14 +272,25 @@ engine.start((dt) => {
     }
   }
 
+  // Hunger drains from activity and drives regen / starvation.
+  if (!paused) {
+    hunger.addExhaustion(player.frameExhaustion);
+    hunger.tick(dt, player);
+  }
+
   if (furnaceUI.isOpen) furnaceUI.refresh();
   hotbar.refresh();
   player.syncCamera(engine.camera);
-  hud.update(player.position.x, player.position.y, player.position.z, player.health, player.air, player.maxAir);
+  hud.update(
+    player.position.x, player.position.y, player.position.z,
+    player.health, player.air, player.maxAir, hunger.value, player.hurtFlash,
+  );
 });
 
 // Debug handle for headless verification (drive streaming/render from devtools).
 (window as unknown as { __bc: unknown }).__bc = {
   engine, world, player, input, hud, sky, materials, sun,
   inventory, mining, drops, spawnDrop, furnaces, inventoryScreen, furnaceUI,
+  mobs, spawner, hunger, Mob, mobTypes: { PASSIVE_MOBS, HOSTILE_MOBS, ZOMBIE, CREEPER },
+  addMob: (m: Mob) => { mobs.push(m); engine.scene.add(m.object3d); },
 };

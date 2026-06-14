@@ -163,6 +163,26 @@ export function createAtlasTexture(): THREE.CanvasTexture {
   // 36 glass — opaque frame, transparent centre (shader discards a<0.5)
   { const [ox, oy] = tile(36); ctx.strokeStyle = "#dff1ff"; ctx.strokeRect(ox + 0.5, oy + 0.5, 15, 15); rect(ox, oy, 2, 2, 4, 1, "#ffffff"); rect(ox, oy, 11, 9, 3, 1, "#cfe9ff"); }
 
+  // --- Foods (37–44) and mob materials (45–49) --------------------------
+  const meat = (i: number, base: string, bone: string) => {
+    blob(i, base, base);
+    const [ox, oy] = origin(i);
+    rect(ox, oy, 10, 3, 3, 2, bone); // little bone nub
+  };
+  meat(37, "#e98f9c", "#f3d9c2"); // raw pork
+  meat(38, "#b5663a", "#f3d9c2"); // cooked pork
+  meat(39, "#c8484f", "#f3d9c2"); // raw beef
+  meat(40, "#7a4a2c", "#f3d9c2"); // steak
+  meat(41, "#d76b74", "#f3d9c2"); // raw mutton
+  meat(42, "#9a5a38", "#f3d9c2"); // cooked mutton
+  meat(43, "#e8c2a0", "#f3d9c2"); // raw chicken
+  meat(44, "#c08a4a", "#f3d9c2"); // cooked chicken
+  { const [ox, oy] = tile(45); rect(ox, oy, 7, 2, 2, 11, "#cfcfcf"); rect(ox, oy, 5, 4, 6, 1, "#ffffff"); rect(ox, oy, 4, 7, 8, 1, "#ffffff"); } // feather
+  blob(46, "#8a5a32", "#6e451f"); // leather
+  blob(47, "#e6e2da", "#cfcabf"); // wool
+  { const [ox, oy] = tile(48); rect(ox, oy, 3, 3, 1, 10, "#dcdcdc"); rect(ox, oy, 6, 5, 1, 8, "#cfcfcf"); rect(ox, oy, 9, 2, 1, 11, "#e8e8e8"); } // string
+  blob(49, "#5a5a5a", "#3a3a3a"); // gunpowder
+
   const tex = new THREE.CanvasTexture(canvas);
   tex.magFilter = THREE.NearestFilter;
   tex.minFilter = THREE.NearestFilter;

@@ -23,8 +23,10 @@ const SWIM_HSPEED = 0.6; // horizontal speed multiplier in water
 
 export const MAX_HEALTH = 20;
 const MAX_AIR = 10; // seconds of breath underwater
-const REGEN_INTERVAL = 3; // seconds per 1 HP passive heal (placeholder until hunger)
 const SAFE_FALL = 3; // blocks of fall absorbed before damage
+const INVULN = 0.5; // seconds of damage immunity after a hit
+const SPRINT_MULT = 1.35;
+const DOUBLE_TAP_MS = 280;
 
 /** Fall damage in HP for a fall of `blocks` height. Pure — unit tested. */
 export function fallDamage(blocks: number): number {
@@ -45,11 +47,17 @@ export class Player {
   readonly maxAir = MAX_AIR;
   submerged = false; // head underwater (drowning)
   inWater = false; // body in water (swimming)
+  sprinting = false;
+  invuln = 0; // remaining damage-immunity time
+  hurtFlash = 0; // remaining red-flash time (for the HUD)
+  /** Exhaustion accrued this frame for the hunger system to consume. */
+  frameExhaustion = 0;
 
   private readonly spawn: THREE.Vector3;
   private fallPeak: number;
   private drownTimer = 0;
-  private regenTimer = 0;
+  private prevForward = false;
+  private lastForwardTap = 0;
 
   constructor(x: number, y: number, z: number) {
     this.position = new THREE.Vector3(x, y, z);
@@ -59,6 +67,9 @@ export class Player {
 
   update(dt: number, input: Input, world: World): void {
     const wasOnGround = this.onGround;
+    this.invuln = Math.max(0, this.invuln - dt);
+    this.hurtFlash = Math.max(0, this.hurtFlash - dt);
+    this.frameExhaustion = 0;
     if (input.locked) {
       const { dx, dy } = input.consumeMouseDelta();
       this.yaw -= dx * MOUSE_SENS;
@@ -69,7 +80,8 @@ export class Player {
 
     let fwd = 0;
     let strafe = 0;
-    if (input.isDown("KeyW")) fwd += 1;
+    const forward = input.isDown("KeyW");
+    if (forward) fwd += 1;
     if (input.isDown("KeyS")) fwd -= 1;
     if (input.isDown("KeyD")) strafe += 1;
     if (input.isDown("KeyA")) strafe -= 1;
@@ -79,14 +91,26 @@ export class Player {
       strafe /= mag;
     }
 
+    // Double-tap W to start sprinting; it ends when W is released.
+    const now = performance.now();
+    if (forward && !this.prevForward) {
+      if (now - this.lastForwardTap < DOUBLE_TAP_MS) this.sprinting = true;
+      this.lastForwardTap = now;
+    }
+    this.prevForward = forward;
+    if (!forward || this.health <= 0) this.sprinting = false;
+
     this.inWater = this.checkWater(world);
 
     // yaw 0 faces -Z (three.js camera convention).
     const sin = Math.sin(this.yaw);
     const cos = Math.cos(this.yaw);
-    const hspeed = SPEED * (this.inWater ? SWIM_HSPEED : 1);
+    const sprintMult = this.sprinting && !this.inWater ? SPRINT_MULT : 1;
+    const hspeed = SPEED * sprintMult * (this.inWater ? SWIM_HSPEED : 1);
     this.velocity.x = (-sin * fwd + cos * strafe) * hspeed;
     this.velocity.z = (-cos * fwd - sin * strafe) * hspeed;
+    // Movement burns food, sprinting more so.
+    if (mag > 0) this.frameExhaustion += (this.sprinting ? 0.04 : 0.01);
 
     if (this.inWater) {
       // Buoyant: sink gently (capped), or swim up by holding Space.
@@ -107,8 +131,8 @@ export class Player {
     this.applySurvival(dt, wasOnGround, world);
   }
 
-  // Fall damage on landing, drowning while submerged, slow passive regen, and
-  // respawn on death. Hunger (Phase 4) will later gate the regen.
+  // Fall damage on landing, drowning while submerged, and respawn on death.
+  // Health regen is driven by the Hunger system, not here.
   private applySurvival(dt: number, wasOnGround: boolean, world: World): void {
     // Water cushions falls — zero the tracked drop height while swimming.
     if (this.inWater) this.fallPeak = this.position.y;
@@ -141,21 +165,32 @@ export class Player {
       this.drownTimer = 0;
     }
 
-    if (this.health > 0 && this.health < this.maxHealth) {
-      this.regenTimer += dt;
-      if (this.regenTimer >= REGEN_INTERVAL) {
-        this.health = Math.min(this.maxHealth, this.health + 1);
-        this.regenTimer -= REGEN_INTERVAL;
-      }
-    } else {
-      this.regenTimer = 0;
-    }
-
     if (this.health <= 0) this.respawn();
   }
 
   hurt(amount: number): void {
     if (amount > 0) this.health = Math.max(0, this.health - amount);
+  }
+
+  heal(amount: number): void {
+    if (amount > 0) this.health = Math.min(this.maxHealth, this.health + amount);
+  }
+
+  /** Take a hit from a world position: damage (if not in i-frames) + knockback + flash. */
+  hurtFrom(amount: number, sourceX: number, sourceZ: number): void {
+    if (this.invuln > 0 || amount <= 0) return;
+    this.hurt(amount);
+    this.invuln = INVULN;
+    this.hurtFlash = 0.35;
+    this.frameExhaustion += 0.5;
+    let dx = this.position.x - sourceX;
+    let dz = this.position.z - sourceZ;
+    const len = Math.hypot(dx, dz) || 1;
+    dx /= len;
+    dz /= len;
+    this.velocity.x += dx * 7;
+    this.velocity.z += dz * 7;
+    this.velocity.y = 5;
   }
 
   private respawn(): void {
@@ -165,6 +200,7 @@ export class Player {
     this.air = this.maxAir;
     this.drownTimer = 0;
     this.fallPeak = this.spawn.y;
+    this.sprinting = false;
   }
 
   /** Eye-level view direction derived from yaw/pitch. */

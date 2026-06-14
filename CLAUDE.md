@@ -27,9 +27,11 @@ Minecraft-style browser voxel game. TypeScript + Three.js + Vite. Plain TS game 
 | `world/World.ts` | Chunk map, world-coord block + light access, streaming, lighting + mesh lifecycle |
 | `world/TextureAtlas.ts` | Procedural 8×8 canvas atlas, 16px tiles, NearestFilter |
 | `physics/aabb.ts` | Shared swept-AABB-vs-voxels resolver (player + entities); DOM-free |
-| `player/Player.ts` | Player physics (uses `physics/aabb`), mouse look, survival (health/air, fall damage, drowning, respawn) |
+| `player/Player.ts` | Player physics (uses `physics/aabb`), mouse look, swimming, sprint, survival (health/air, fall, drowning, knockback hits, respawn) |
 | `player/Raycast.ts` | Amanatides–Woo voxel DDA — pure, no three.js |
 | `player/Mining.ts` | Hold-to-mine: break-time + harvest-tier gate (pure) + progress tracker |
+| `player/Combat.ts` | Melee `attackDamage(stack)` by weapon tier (pure) |
+| `player/Hunger.ts` | Food bar: exhaustion drain, eating, regen/starvation (pure, tested) |
 | `item/Item.ts` | Item registry (block-items, materials, tools) + block→drop table |
 | `item/ItemStack.ts` | Stack merge/split helpers (pure) |
 | `item/Inventory.ts` | 36-slot inventory (9 hotbar): add/remove/has/consume |
@@ -37,6 +39,9 @@ Minecraft-style browser voxel game. TypeScript + Three.js + Vite. Plain TS game 
 | `block/Furnace.ts` | Per-furnace smelting state + coord-keyed registry, ticked by the loop |
 | `entity/Entity.ts` | Entity base on `physics/aabb` (gravity + collision); mobs reuse it |
 | `entity/ItemDrop.ts` | Bobbing/spinning item-drop entity, proximity pickup |
+| `entity/Mob.ts` | Data-driven mob: boxy model, wander/flee/seek/attack AI, knockback hits, loot, creeper blast |
+| `entity/MobTypes.ts` | The 7 mob definitions (pig/cow/sheep/chicken + zombie/spider/creeper) |
+| `entity/Spawner.ts` | Light/time-gated spawning around the player with per-kind caps (gate is pure) |
 | `ui/ItemSlots.ts` | Drag Cursor + SlotGrid (pick/place/merge/split) used by the modals |
 | `ui/InventoryScreen.ts` | Modal inventory + 2×2/3×3 crafting grid (E, or a crafting table) |
 | `ui/FurnaceUI.ts` | Modal furnace: input/fuel/output + flame & progress gauges |
@@ -58,4 +63,5 @@ Done: **Phase 1** — caves, ores, biomes, bedrock, 128-tall chunks.
 Done: **Phase 2** — skylight + blocklight propagation, day/night cycle, placeable torches, fall damage, drowning, death/respawn, health + air HUD.
 Done: **Phase 3a** — item registry + drop table, 36-slot inventory, item-drop entities with pickup, hold-to-mine with hardness/tool-speed + crack overlay + harvest-tier gate, shared AABB physics.
 Done: **Phase 3b** — modal inventory + crafting (2×2 personal / 3×3 table), recipe registry (planks, sticks, table, tools, furnace, torches), furnace smelting with fuel, crafting table + furnace + glass blocks. Survival start (empty inventory).
-Next: mobs + combat + hunger (Phase 4); then persistence (Phase 5).
+Done: **Phase 4** — 7 mobs with AI (passive wander/flee, hostile seek/attack, creeper explosion), light/time-gated spawning, melee combat both ways (knockback + i-frames + hit flash), hunger bar (eat food, regen/starvation), sprint, mob loot + cookable meats. Swimming added (buoyancy + swim-up).
+Next: persistence — world + inventory save/load (Phase 5); perf pass; polish.

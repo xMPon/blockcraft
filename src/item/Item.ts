@@ -61,13 +61,30 @@ export const I_IRON_SHOVEL = 49;
 export const I_WOOD_SWORD = 50;
 export const I_STONE_SWORD = 51;
 export const I_IRON_SWORD = 52;
+// Foods (mob loot; raw cooks in a furnace) + mob materials
+export const I_RAW_PORK = 60;
+export const I_COOKED_PORK = 61;
+export const I_RAW_BEEF = 62;
+export const I_COOKED_BEEF = 63;
+export const I_RAW_MUTTON = 64;
+export const I_COOKED_MUTTON = 65;
+export const I_RAW_CHICKEN = 66;
+export const I_COOKED_CHICKEN = 67;
+export const I_FEATHER = 68;
+export const I_LEATHER = 69;
+export const I_WOOL = 70;
+export const I_STRING = 71;
+export const I_GUNPOWDER = 72;
 
 // Atlas item-icon tiles (drawn in TextureAtlas): 20 stick, 21 coal, 22 iron
 // ingot, 23 gold ingot, 24 diamond, 25 raw iron, 26 raw gold, 27 redstone,
-// 28 pickaxe, 29 axe, 30 shovel, 31 sword.
+// 28 pickaxe, 29 axe, 30 shovel, 31 sword. Foods/materials use 37–49.
 const T_STICK = 20, T_COAL = 21, T_IRON_INGOT = 22, T_GOLD_INGOT = 23;
 const T_DIAMOND = 24, T_RAW_IRON = 25, T_RAW_GOLD = 26, T_REDSTONE = 27;
 const T_PICKAXE = 28, T_AXE = 29, T_SHOVEL = 30, T_SWORD = 31;
+const T_RAW_PORK = 37, T_COOKED_PORK = 38, T_RAW_BEEF = 39, T_COOKED_BEEF = 40;
+const T_RAW_MUTTON = 41, T_COOKED_MUTTON = 42, T_RAW_CHICKEN = 43, T_COOKED_CHICKEN = 44;
+const T_FEATHER = 45, T_LEATHER = 46, T_WOOL = 47, T_STRING = 48, T_GUNPOWDER = 49;
 
 const ITEMS = new Map<number, ItemDef>();
 
@@ -118,6 +135,21 @@ tool(I_IRON_SHOVEL, "iron shovel", T_SHOVEL, "#e8d8c4", "shovel", TIER_IRON, 6);
 tool(I_WOOD_SWORD, "wooden sword", T_SWORD, "#b9925a", "sword", TIER_WOOD, 1);
 tool(I_STONE_SWORD, "stone sword", T_SWORD, "#8a8a8a", "sword", TIER_STONE, 1);
 tool(I_IRON_SWORD, "iron sword", T_SWORD, "#e8d8c4", "sword", TIER_IRON, 1);
+
+// Foods — cooked variants restore more hunger than raw.
+material(I_RAW_PORK, "raw porkchop", T_RAW_PORK, "#e98f9c", 3);
+material(I_COOKED_PORK, "cooked porkchop", T_COOKED_PORK, "#b5663a", 8);
+material(I_RAW_BEEF, "raw beef", T_RAW_BEEF, "#c8484f", 3);
+material(I_COOKED_BEEF, "steak", T_COOKED_BEEF, "#7a4a2c", 8);
+material(I_RAW_MUTTON, "raw mutton", T_RAW_MUTTON, "#d76b74", 2);
+material(I_COOKED_MUTTON, "cooked mutton", T_COOKED_MUTTON, "#9a5a38", 6);
+material(I_RAW_CHICKEN, "raw chicken", T_RAW_CHICKEN, "#e8c2a0", 2);
+material(I_COOKED_CHICKEN, "cooked chicken", T_COOKED_CHICKEN, "#c08a4a", 6);
+material(I_FEATHER, "feather", T_FEATHER, "#f0f0f0");
+material(I_LEATHER, "leather", T_LEATHER, "#8a5a32");
+material(I_WOOL, "wool", T_WOOL, "#e6e2da");
+material(I_STRING, "string", T_STRING, "#dcdcdc");
+material(I_GUNPOWDER, "gunpowder", T_GUNPOWDER, "#5a5a5a");
 
 export function itemDef(id: number): ItemDef {
   const d = ITEMS.get(id);

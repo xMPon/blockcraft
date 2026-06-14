@@ -60,6 +60,31 @@ canvas {
   height: 18px;
 }
 
+.vitals {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+}
+
+.hunger-row {
+  flex-direction: row-reverse;
+}
+
+.drumstick {
+  font-size: 14px;
+  line-height: 18px;
+  filter: drop-shadow(0 1px 1px #000);
+}
+
+.hurt-flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(170, 0, 0, 0.85) 100%);
+  z-index: 5;
+}
+
 .heart {
   position: relative;
   display: inline-block;
