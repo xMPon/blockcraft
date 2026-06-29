@@ -7,6 +7,7 @@ import {
   REDSTONE_ORE, SAND, STONE, WATER, WOOD,
 } from "./Block";
 import { hash01, mulberry32 } from "../core/rng";
+import { stampVillages } from "./Structures";
 
 export const SEA_LEVEL = 63;
 const BEDROCK_TOP = 4; // y 0 solid bedrock; 1..4 increasingly stone
@@ -101,6 +102,7 @@ export class WorldGen {
     this.carveCaves(chunk);
     this.placeOres(chunk);
     this.plantTrees(chunk);
+    stampVillages(chunk, this);
   }
 
   // Carve underground air with ridged-noise tunnels and deeper blobby caverns.
