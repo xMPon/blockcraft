@@ -61,9 +61,11 @@ function buildModel(type: MobType): { group: THREE.Group; legs: THREE.Mesh[] } {
   const group = new THREE.Group();
   const legs: THREE.Mesh[] = [];
   for (const p of type.parts) {
+    // Lambert so the scene's hemisphere + sun light shade the mob (the chunk
+    // shader ignores scene lights, so this only affects entities).
     const mesh = new THREE.Mesh(
       new THREE.BoxGeometry(p.w, p.h, p.d),
-      new THREE.MeshBasicMaterial({ color: p.color }),
+      new THREE.MeshLambertMaterial({ color: p.color }),
     );
     mesh.position.set(p.x, p.y, p.z);
     group.add(mesh);

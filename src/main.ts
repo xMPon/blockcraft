@@ -69,6 +69,13 @@ function startGame(store: Store, seed: number, meta: SaveMeta | null, overrides:
   );
   engine.scene.add(sun);
 
+  // Scene lights shade the Lambert-material entities (mobs/drops). The chunk
+  // shader bakes its own voxel light and ignores these, so terrain is unchanged.
+  const hemiLight = new THREE.HemisphereLight(0xcfe0ff, 0x4a4636, 1.0);
+  engine.scene.add(hemiLight);
+  const sunLight = new THREE.DirectionalLight(0xfff2c0, 1.1);
+  engine.scene.add(sunLight);
+
   // Pre-generate the spawn area so the player lands on solid ground frame one.
   for (let cx = -1; cx <= 1; cx++) for (let cz = -1; cz <= 1; cz++) world.getOrCreateChunk(cx, cz);
 
@@ -207,6 +214,10 @@ function startGame(store: Store, seed: number, meta: SaveMeta | null, overrides:
     materials.uFogColor.value.copy(sky.color);
     materials.uDayFactor.value = sky.dayFactor;
     sun.position.copy(player.position).addScaledVector(sky.sunDirection, VIEW_DISTANCE * 1.1);
+    // Mob lighting tracks the sun: bright by day, dim and bluish at night.
+    sunLight.position.copy(sky.sunDirection);
+    sunLight.intensity = 0.25 + sky.dayFactor * 1.0;
+    hemiLight.intensity = 0.35 + sky.dayFactor * 0.7;
 
     furnaces.tick(dt);
     if (!paused) player.update(dt, input, world);
