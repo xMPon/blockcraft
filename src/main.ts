@@ -10,6 +10,7 @@ import { Sound } from "./core/Sound";
 import { createChunkMaterials } from "./core/ChunkMaterial";
 import { World, RENDER_RADIUS } from "./world/World";
 import { WorldGen } from "./world/WorldGen";
+import { WaterSim } from "./world/WaterSim";
 import { createAtlasTexture, createCrackTexture } from "./world/TextureAtlas";
 import { AIR, WATER, CRAFTING_TABLE, FURNACE, CHEST, isSolid } from "./world/Block";
 import { CHUNK_X } from "./world/Chunk";
@@ -64,6 +65,7 @@ function startGame(store: Store, seed: number, meta: SaveMeta | null, overrides:
   const atlas = createAtlasTexture();
   const materials = createChunkMaterials(atlas, VIEW_DISTANCE);
   const world = new World(new WorldGen(seed), engine.scene, materials, overrides);
+  const waterSim = new WaterSim(world);
 
   // Sun disc that arcs across the sky; unfogged so it stays visible at the horizon.
   const sun = new THREE.Mesh(
@@ -235,6 +237,7 @@ function startGame(store: Store, seed: number, meta: SaveMeta | null, overrides:
     hemiLight.intensity = 0.35 + sky.dayFactor * 0.7;
 
     furnaces.tick(dt);
+    if (!paused) waterSim.update(dt);
     if (!paused) player.update(dt, input, world);
     world.update(player.position.x, player.position.z);
 
@@ -263,6 +266,7 @@ function startGame(store: Store, seed: number, meta: SaveMeta | null, overrides:
         for (const s of chests.remove(hit.x, hit.y, hit.z)) spawnDrop(hit.x, hit.y, hit.z, s.item, s.count);
       }
       world.setBlock(hit.x, hit.y, hit.z, AIR);
+      waterSim.disturb(hit.x, hit.y, hit.z); // breached water flows into the gap
       hunger.addExhaustion(0.05);
       sound.break();
     }
@@ -398,7 +402,7 @@ function startGame(store: Store, seed: number, meta: SaveMeta | null, overrides:
     mobs, arrows, spawner, hunger, Mob, mobCtx,
     mobTypes: { PASSIVE_MOBS, HOSTILE_MOBS, ZOMBIE, CREEPER, SKELETON },
     addMob: (m: Mob) => { mobs.push(m); engine.scene.add(m.object3d); },
-    store, saveNow, pause, seed, chests, chestUI,
+    store, saveNow, pause, seed, chests, chestUI, waterSim,
   };
 }
 
