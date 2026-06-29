@@ -183,6 +183,15 @@ export function createAtlasTexture(): THREE.CanvasTexture {
   { const [ox, oy] = tile(48); rect(ox, oy, 3, 3, 1, 10, "#dcdcdc"); rect(ox, oy, 6, 5, 1, 8, "#cfcfcf"); rect(ox, oy, 9, 2, 1, 11, "#e8e8e8"); } // string
   blob(49, "#5a5a5a", "#3a3a3a"); // gunpowder
 
+  // --- Chest block faces (50 top, 51 side+latch) -------------------------
+  speckle(50, "#7a5326", ["#8a5f2e", "#6b481f"]);
+  { const [ox, oy] = origin(50); ctx.strokeStyle = "#4f3416"; ctx.strokeRect(ox + 1.5, oy + 1.5, 13, 13); }
+  speckle(51, "#7a5326", ["#8a5f2e", "#6b481f"]);
+  { const [ox, oy] = origin(51);
+    ctx.strokeStyle = "#4f3416"; ctx.strokeRect(ox + 0.5, oy + 0.5, 15, 15);
+    rect(ox, oy, 0, 6, 16, 2, "#4f3416"); // band
+    rect(ox, oy, 6, 6, 4, 4, "#d9c27a"); rect(ox, oy, 7, 7, 2, 2, "#5a4a1e"); } // latch
+
   const tex = new THREE.CanvasTexture(canvas);
   tex.magFilter = THREE.NearestFilter;
   tex.minFilter = THREE.NearestFilter;

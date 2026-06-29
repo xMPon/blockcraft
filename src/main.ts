@@ -11,7 +11,7 @@ import { createChunkMaterials } from "./core/ChunkMaterial";
 import { World, RENDER_RADIUS } from "./world/World";
 import { WorldGen } from "./world/WorldGen";
 import { createAtlasTexture, createCrackTexture } from "./world/TextureAtlas";
-import { AIR, WATER, CRAFTING_TABLE, FURNACE, isSolid } from "./world/Block";
+import { AIR, WATER, CRAFTING_TABLE, FURNACE, CHEST, isSolid } from "./world/Block";
 import { CHUNK_X } from "./world/Chunk";
 import { Player, EYE_HEIGHT } from "./player/Player";
 import { raycastVoxel } from "./player/Raycast";
@@ -25,11 +25,13 @@ import { Mob } from "./entity/Mob";
 import { PASSIVE_MOBS, HOSTILE_MOBS, ZOMBIE, CREEPER } from "./entity/MobTypes";
 import { Spawner } from "./entity/Spawner";
 import { Furnaces } from "./block/Furnace";
+import { Chests } from "./block/Chest";
 import { Store, type SaveMeta } from "./persist/Store";
 import { Hotbar } from "./ui/Hotbar";
 import { Hud } from "./ui/Hud";
 import { InventoryScreen } from "./ui/InventoryScreen";
 import { FurnaceUI } from "./ui/FurnaceUI";
+import { ChestUI } from "./ui/ChestUI";
 import { PauseMenu } from "./ui/PauseMenu";
 
 const REACH = 6;
@@ -84,6 +86,7 @@ function startGame(store: Store, seed: number, meta: SaveMeta | null, overrides:
   const inventory = new Inventory();
   const hunger = new Hunger();
   const furnaces = new Furnaces();
+  const chests = new Chests();
 
   // Restore saved state over the fresh defaults.
   if (meta) {
@@ -96,11 +99,13 @@ function startGame(store: Store, seed: number, meta: SaveMeta | null, overrides:
     inventory.load(meta.inventory);
     sky.time = meta.time;
     furnaces.restore(meta.furnaces);
+    chests.restore(meta.chests ?? []);
   }
 
   const hotbar = new Hotbar(document.body, inventory);
   const inventoryScreen = new InventoryScreen(document.body, inventory);
   const furnaceUI = new FurnaceUI(document.body, inventory);
+  const chestUI = new ChestUI(document.body, inventory);
 
   async function saveNow(): Promise<void> {
     const m: SaveMeta = {
@@ -114,6 +119,7 @@ function startGame(store: Store, seed: number, meta: SaveMeta | null, overrides:
       },
       inventory: inventory.serialize(),
       furnaces: furnaces.serialize(),
+      chests: chests.serialize(),
     };
     await store.putMeta(m);
     await store.putChunks(world.collectModified());
@@ -125,16 +131,17 @@ function startGame(store: Store, seed: number, meta: SaveMeta | null, overrides:
     onSave: () => { void saveNow(); },
     onNewWorld: async () => { await store.clearAll(); location.reload(); },
   });
-  const modalOpen = () => inventoryScreen.isOpen || furnaceUI.isOpen || pause.isOpen;
+  const modalOpen = () => inventoryScreen.isOpen || furnaceUI.isOpen || chestUI.isOpen || pause.isOpen;
 
   // E toggles the inventory; Escape backs out of a screen or opens the pause menu.
   window.addEventListener("keydown", (e) => {
-    if (e.code === "KeyE" && !furnaceUI.isOpen && !pause.isOpen) {
+    if (e.code === "KeyE" && !furnaceUI.isOpen && !chestUI.isOpen && !pause.isOpen) {
       if (inventoryScreen.isOpen) inventoryScreen.close();
       else { inventoryScreen.open(false); document.exitPointerLock(); }
     } else if (e.code === "Escape") {
       if (inventoryScreen.isOpen) inventoryScreen.close();
       else if (furnaceUI.isOpen) furnaceUI.close();
+      else if (chestUI.isOpen) chestUI.close();
       else if (pause.isOpen) { pause.close(); input.requestPointerLock(); }
       else pause.open();
     }
@@ -244,6 +251,9 @@ function startGame(store: Store, seed: number, meta: SaveMeta | null, overrides:
       if (targetId === FURNACE) {
         for (const s of furnaces.remove(hit.x, hit.y, hit.z)) spawnDrop(hit.x, hit.y, hit.z, s.item, s.count);
       }
+      if (targetId === CHEST) {
+        for (const s of chests.remove(hit.x, hit.y, hit.z)) spawnDrop(hit.x, hit.y, hit.z, s.item, s.count);
+      }
       world.setBlock(hit.x, hit.y, hit.z, AIR);
       hunger.addExhaustion(0.05);
       sound.break();
@@ -278,6 +288,7 @@ function startGame(store: Store, seed: number, meta: SaveMeta | null, overrides:
         const tb = world.getBlock(hit.x, hit.y, hit.z);
         if (tb === CRAFTING_TABLE) { inventoryScreen.open(true); document.exitPointerLock(); break; }
         if (tb === FURNACE) { furnaceUI.open(furnaces.getOrCreate(hit.x, hit.y, hit.z)); document.exitPointerLock(); break; }
+        if (tb === CHEST) { chestUI.open(chests.getOrCreate(hit.x, hit.y, hit.z)); document.exitPointerLock(); break; }
         const place = sel ? itemDef(sel.item).placeBlock : undefined;
         if (place === undefined) continue;
         const px = hit.x + hit.face[0];
@@ -357,7 +368,7 @@ function startGame(store: Store, seed: number, meta: SaveMeta | null, overrides:
     inventory, mining, drops, spawnDrop, furnaces, inventoryScreen, furnaceUI,
     mobs, spawner, hunger, Mob, mobTypes: { PASSIVE_MOBS, HOSTILE_MOBS, ZOMBIE, CREEPER },
     addMob: (m: Mob) => { mobs.push(m); engine.scene.add(m.object3d); },
-    store, saveNow, pause, seed,
+    store, saveNow, pause, seed, chests, chestUI,
   };
 }
 

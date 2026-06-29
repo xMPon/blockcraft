@@ -23,6 +23,11 @@ export interface FurnaceSave {
   cook: number;
 }
 
+export interface ChestSaveEntry {
+  key: string;
+  slots: (ItemSave | null)[];
+}
+
 export interface SaveMeta {
   version: number;
   seed: number;
@@ -33,6 +38,7 @@ export interface SaveMeta {
   };
   inventory: (ItemSave | null)[];
   furnaces: FurnaceSave[];
+  chests: ChestSaveEntry[];
 }
 
 export class Store {

@@ -3,7 +3,8 @@
 import { describe, expect, it } from "vitest";
 import { Inventory } from "../src/item/Inventory";
 import { Furnaces } from "../src/block/Furnace";
-import { I_COAL, I_RAW_IRON, I_IRON_INGOT, I_STONE_PICKAXE } from "../src/item/Item";
+import { Chests } from "../src/block/Chest";
+import { I_COAL, I_RAW_IRON, I_IRON_INGOT, I_STONE_PICKAXE, I_DIAMOND } from "../src/item/Item";
 
 describe("Inventory serialize/load", () => {
   it("round-trips slot contents", () => {
@@ -26,6 +27,29 @@ describe("Inventory serialize/load", () => {
     b.load(a.serialize());
     b.slots[0]!.count = 99;
     expect(a.slots[0]!.count).toBe(10);
+  });
+});
+
+describe("Chests serialize/restore", () => {
+  it("round-trips a chest's slots by coordinate", () => {
+    const a = new Chests();
+    const c = a.getOrCreate(10, 64, -3);
+    c.slots[0] = { item: I_DIAMOND, count: 5 };
+    c.slots[26] = { item: I_COAL, count: 64 };
+
+    const b = new Chests();
+    b.restore(a.serialize());
+    const r = b.getOrCreate(10, 64, -3);
+    expect(r.slots[0]).toEqual({ item: I_DIAMOND, count: 5 });
+    expect(r.slots[26]).toEqual({ item: I_COAL, count: 64 });
+    expect(r.slots[1]).toBeNull();
+  });
+
+  it("remove() returns contents and clears the chest", () => {
+    const a = new Chests();
+    a.getOrCreate(1, 2, 3).slots[0] = { item: I_COAL, count: 2 };
+    expect(a.remove(1, 2, 3)).toEqual([{ item: I_COAL, count: 2 }]);
+    expect(a.remove(1, 2, 3)).toEqual([]); // gone now
   });
 });
 

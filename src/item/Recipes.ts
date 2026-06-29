@@ -8,7 +8,7 @@ import {
   I_WOOD_PICKAXE, I_STONE_PICKAXE, I_IRON_PICKAXE, I_WOOD_AXE, I_STONE_AXE, I_IRON_AXE,
   I_WOOD_SHOVEL, I_STONE_SHOVEL, I_IRON_SHOVEL, I_WOOD_SWORD, I_STONE_SWORD, I_IRON_SWORD,
   I_RAW_PORK, I_COOKED_PORK, I_RAW_BEEF, I_COOKED_BEEF, I_RAW_MUTTON, I_COOKED_MUTTON,
-  I_RAW_CHICKEN, I_COOKED_CHICKEN,
+  I_RAW_CHICKEN, I_COOKED_CHICKEN, I_CHEST,
 } from "./Item";
 
 interface ShapedRecipe {
@@ -39,6 +39,7 @@ const RECIPES: Recipe[] = [
   { shaped: true, rows: ["P", "P"], key: { P: I_PLANKS }, out: { item: I_STICK, count: 4 } },
   { shaped: true, rows: ["PP", "PP"], key: { P: I_PLANKS }, out: { item: I_CRAFTING_TABLE, count: 1 } },
   { shaped: true, rows: ["CCC", "C C", "CCC"], key: { C: I_COBBLESTONE }, out: { item: I_FURNACE, count: 1 } },
+  { shaped: true, rows: ["PPP", "P P", "PPP"], key: { P: I_PLANKS }, out: { item: I_CHEST, count: 1 } },
   { shaped: true, rows: ["A", "S"], key: { A: I_COAL, S: I_STICK }, out: { item: I_TORCH, count: 4 } },
   pickaxe(I_PLANKS, I_STICK, I_WOOD_PICKAXE),
   pickaxe(I_COBBLESTONE, I_STICK, I_STONE_PICKAXE),

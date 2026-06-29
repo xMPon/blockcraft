@@ -23,6 +23,7 @@ export const TORCH = 18;
 export const CRAFTING_TABLE = 19;
 export const FURNACE = 20;
 export const GLASS = 21;
+export const CHEST = 22;
 
 /** Which geometry bucket a block meshes into. */
 export type MeshLayer = "solid" | "cutout" | "water";
@@ -101,6 +102,7 @@ export const BLOCKS: BlockDef[] = [
   // Glass: cutout layer with a framed transparent tile — the shader discards the
   // clear centre, so it renders see-through without a separate transparent pass.
   def({ id: GLASS, name: "glass", solid: true, opaque: false, layer: "cutout", tiles: [36, 36, 36], color: "#bfe6ff", hardness: 0.3 }),
+  def({ id: CHEST, name: "chest", tiles: [50, 51, 50], color: "#7a5326", hardness: 2.5, tool: "axe" }),
 ];
 
 /** Blocks offered in the test hotbar, in slot order. */
