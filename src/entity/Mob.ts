@@ -18,6 +18,8 @@ export interface MobCtx {
   playerPos: THREE.Vector3;
   /** Deal damage to the player from a world position (for knockback direction). */
   damagePlayer: (amount: number, fromX: number, fromZ: number) => void;
+  /** Spawn an arrow from a world position with a launch velocity (skeletons). */
+  shootArrow: (x: number, y: number, z: number, vx: number, vy: number, vz: number) => void;
 }
 
 interface MobPart {
@@ -39,7 +41,7 @@ export interface MobType {
   parts: MobPart[];
   detect?: number; // hostile aggro range
   attack?: number; // melee touch damage
-  special?: "creeper";
+  special?: "creeper" | "skeleton";
   loot: LootEntry[];
 }
 
@@ -111,7 +113,29 @@ export class Mob extends Entity {
     if (this.type.hostile && dist < detect && dist > 0.001) {
       const nx = dx / dist;
       const nz = dz / dist;
-      if (this.type.special === "creeper") {
+      if (this.type.special === "skeleton") {
+        // Kite: back off when too close, approach from afar, else hold and fire.
+        if (dist < 5) { mx = -nx; mz = -nz; }
+        else if (dist > 9) { mx = nx; mz = nz; }
+        this.object3d.rotation.y = Math.atan2(nx, nz);
+        if (this.attackCd <= 0 && dist < 13) {
+          // Aim at the player's chest with an upward arc to fight gravity.
+          const SPEED = 26;
+          const tx = ctx.playerPos.x - this.position.x;
+          const ty = ctx.playerPos.y + 1.0 - (this.position.y + this.height * 0.75);
+          const tz = ctx.playerPos.z - this.position.z;
+          const len = Math.hypot(tx, ty, tz) || 1;
+          const ax = tx / len;
+          const ay = ty / len + dist * 0.022; // arc compensation
+          const az = tz / len;
+          const al = Math.hypot(ax, ay, az) || 1;
+          ctx.shootArrow(
+            this.position.x + ax * 0.5, this.position.y + this.height * 0.75, this.position.z + az * 0.5,
+            (ax / al) * SPEED, (ay / al) * SPEED, (az / al) * SPEED,
+          );
+          this.attackCd = 1.8;
+        }
+      } else if (this.type.special === "creeper") {
         if (dist < 2.8) {
           this.fuse += dt;
           this.object3d.scale.setScalar(Math.min(1.6, 1 + this.fuse * 0.25 + Math.sin(this.fuse * 22) * 0.08));

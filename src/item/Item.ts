@@ -76,6 +76,7 @@ export const I_LEATHER = 69;
 export const I_WOOL = 70;
 export const I_STRING = 71;
 export const I_GUNPOWDER = 72;
+export const I_BONE = 73;
 
 // Atlas item-icon tiles (drawn in TextureAtlas): 20 stick, 21 coal, 22 iron
 // ingot, 23 gold ingot, 24 diamond, 25 raw iron, 26 raw gold, 27 redstone,
@@ -86,6 +87,7 @@ const T_PICKAXE = 28, T_AXE = 29, T_SHOVEL = 30, T_SWORD = 31;
 const T_RAW_PORK = 37, T_COOKED_PORK = 38, T_RAW_BEEF = 39, T_COOKED_BEEF = 40;
 const T_RAW_MUTTON = 41, T_COOKED_MUTTON = 42, T_RAW_CHICKEN = 43, T_COOKED_CHICKEN = 44;
 const T_FEATHER = 45, T_LEATHER = 46, T_WOOL = 47, T_STRING = 48, T_GUNPOWDER = 49;
+const T_BONE = 52;
 
 const ITEMS = new Map<number, ItemDef>();
 
@@ -152,6 +154,7 @@ material(I_LEATHER, "leather", T_LEATHER, "#8a5a32");
 material(I_WOOL, "wool", T_WOOL, "#e6e2da");
 material(I_STRING, "string", T_STRING, "#dcdcdc");
 material(I_GUNPOWDER, "gunpowder", T_GUNPOWDER, "#5a5a5a");
+material(I_BONE, "bone", T_BONE, "#e8e4d0");
 
 export function itemDef(id: number): ItemDef {
   const d = ITEMS.get(id);

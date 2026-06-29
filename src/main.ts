@@ -21,8 +21,9 @@ import { MiningState, toolOf, canHarvest } from "./player/Mining";
 import { attackDamage, PLAYER_REACH } from "./player/Combat";
 import { Hunger } from "./player/Hunger";
 import { ItemDrop } from "./entity/ItemDrop";
+import { Arrow } from "./entity/Arrow";
 import { Mob } from "./entity/Mob";
-import { PASSIVE_MOBS, HOSTILE_MOBS, ZOMBIE, CREEPER } from "./entity/MobTypes";
+import { PASSIVE_MOBS, HOSTILE_MOBS, ZOMBIE, CREEPER, SKELETON } from "./entity/MobTypes";
 import { Spawner } from "./entity/Spawner";
 import { Furnaces } from "./block/Furnace";
 import { Chests } from "./block/Chest";
@@ -155,12 +156,19 @@ function startGame(store: Store, seed: number, meta: SaveMeta | null, overrides:
   const mining = new MiningState();
   const drops: ItemDrop[] = [];
   const mobs: Mob[] = [];
+  const arrows: Arrow[] = [];
   const spawner = new Spawner();
   const dropMaterial = new THREE.MeshBasicMaterial({ map: atlas, alphaTest: 0.5 });
+  const arrowMaterial = new THREE.MeshLambertMaterial({ color: 0x6e5a3c });
 
   const mobCtx = {
     playerPos: player.position,
     damagePlayer: (amount: number, fromX: number, fromZ: number) => player.hurtFrom(amount, fromX, fromZ),
+    shootArrow: (x: number, y: number, z: number, vx: number, vy: number, vz: number) => {
+      const arrow = new Arrow(x, y, z, vx, vy, vz, arrowMaterial);
+      arrows.push(arrow);
+      engine.scene.add(arrow.object3d);
+    },
   };
 
   function pickTargetMob(): Mob | null {
@@ -329,6 +337,27 @@ function startGame(store: Store, seed: number, meta: SaveMeta | null, overrides:
       mobs.splice(i, 1);
     }
 
+    // Arrows: fly, hit the player on proximity, then despawn on block/player/expiry.
+    for (const arrow of arrows) {
+      if (!paused) {
+        arrow.update(dt, world);
+        // Hit test against the player's body column (feet..head).
+        const dxp = arrow.position.x - player.position.x;
+        const dzp = arrow.position.z - player.position.z;
+        const ay = arrow.position.y - player.position.y;
+        if (Math.abs(dxp) < 0.5 && Math.abs(dzp) < 0.5 && ay > -0.1 && ay < 1.85) {
+          player.hurtFrom(4, arrow.position.x, arrow.position.z);
+          arrow.dead = true;
+        }
+      }
+    }
+    for (let i = arrows.length - 1; i >= 0; i--) {
+      if (arrows[i].dead) {
+        engine.scene.remove(arrows[i].object3d);
+        arrows.splice(i, 1);
+      }
+    }
+
     // Item drops; collect any the player reaches.
     for (const drop of drops) {
       drop.update(dt, world);
@@ -366,7 +395,8 @@ function startGame(store: Store, seed: number, meta: SaveMeta | null, overrides:
   (window as unknown as { __bc: unknown }).__bc = {
     engine, world, player, input, hud, sky, materials, sun,
     inventory, mining, drops, spawnDrop, furnaces, inventoryScreen, furnaceUI,
-    mobs, spawner, hunger, Mob, mobTypes: { PASSIVE_MOBS, HOSTILE_MOBS, ZOMBIE, CREEPER },
+    mobs, arrows, spawner, hunger, Mob, mobCtx,
+    mobTypes: { PASSIVE_MOBS, HOSTILE_MOBS, ZOMBIE, CREEPER, SKELETON },
     addMob: (m: Mob) => { mobs.push(m); engine.scene.add(m.object3d); },
     store, saveNow, pause, seed, chests, chestUI,
   };

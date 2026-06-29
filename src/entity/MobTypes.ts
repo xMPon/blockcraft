@@ -4,7 +4,7 @@
 import type { MobType } from "./Mob";
 import {
   I_RAW_PORK, I_RAW_BEEF, I_RAW_MUTTON, I_RAW_CHICKEN,
-  I_LEATHER, I_WOOL, I_FEATHER, I_STRING, I_GUNPOWDER,
+  I_LEATHER, I_WOOL, I_FEATHER, I_STRING, I_GUNPOWDER, I_BONE,
 } from "../item/Item";
 
 const EYE = 0x14110e; // dark eye
@@ -147,5 +147,24 @@ export const CREEPER: MobType = {
   loot: [{ item: I_GUNPOWDER, min: 0, max: 2 }],
 };
 
+export const SKELETON: MobType = {
+  name: "skeleton", hostile: true, health: 18, speed: 1.0, halfW: 0.3, height: 1.85, special: "skeleton", detect: 16,
+  parts: [
+    { w: 0.42, h: 0.55, d: 0.24, x: 0, y: 1.05, z: 0, color: 0xd8d4c4 }, // ribcage
+    { w: 0.06, h: 0.5, d: 0.06, x: -0.13, y: 1.05, z: 0, color: 0xc4c0b0 }, // spine ribs hint
+    { w: 0.06, h: 0.5, d: 0.06, x: 0.13, y: 1.05, z: 0, color: 0xc4c0b0 },
+    { w: 0.42, h: 0.42, d: 0.42, x: 0, y: 1.58, z: 0, color: 0xe2ddcc }, // skull
+    { w: 0.1, h: 0.09, d: 0.05, x: -0.1, y: 1.6, z: -0.21, color: 0x16140f }, // eye sockets
+    { w: 0.1, h: 0.09, d: 0.05, x: 0.1, y: 1.6, z: -0.21, color: 0x16140f },
+    { w: 0.18, h: 0.05, d: 0.04, x: 0, y: 1.46, z: -0.21, color: 0x16140f }, // jaw line
+    { w: 0.11, h: 0.5, d: 0.13, x: -0.32, y: 1.12, z: -0.12, color: 0xd8d4c4 }, // arms (bow side fwd)
+    { w: 0.11, h: 0.5, d: 0.13, x: 0.32, y: 1.12, z: -0.12, color: 0xd8d4c4 },
+    { w: 0.05, h: 0.8, d: 0.05, x: -0.42, y: 1.12, z: -0.2, color: 0x6e4d2c }, // bow stave
+    { w: 0.16, h: 0.72, d: 0.18, x: -0.11, y: 0.36, z: 0, color: 0xc8c4b4, leg: true },
+    { w: 0.16, h: 0.72, d: 0.18, x: 0.11, y: 0.36, z: 0, color: 0xc8c4b4, leg: true },
+  ],
+  loot: [{ item: I_BONE, min: 0, max: 2 }],
+};
+
 export const PASSIVE_MOBS: MobType[] = [PIG, COW, SHEEP, CHICKEN];
-export const HOSTILE_MOBS: MobType[] = [ZOMBIE, SPIDER, CREEPER];
+export const HOSTILE_MOBS: MobType[] = [ZOMBIE, SPIDER, CREEPER, SKELETON];

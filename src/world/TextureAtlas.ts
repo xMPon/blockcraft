@@ -182,6 +182,8 @@ export function createAtlasTexture(): THREE.CanvasTexture {
   blob(47, "#e6e2da", "#cfcabf"); // wool
   { const [ox, oy] = tile(48); rect(ox, oy, 3, 3, 1, 10, "#dcdcdc"); rect(ox, oy, 6, 5, 1, 8, "#cfcfcf"); rect(ox, oy, 9, 2, 1, 11, "#e8e8e8"); } // string
   blob(49, "#5a5a5a", "#3a3a3a"); // gunpowder
+  // 52 bone — a shaft with knobbed ends
+  { const [ox, oy] = tile(52); rect(ox, oy, 6, 4, 4, 8, "#e8e4d0"); rect(ox, oy, 4, 3, 3, 3, "#f4f0e0"); rect(ox, oy, 9, 3, 3, 3, "#f4f0e0"); rect(ox, oy, 4, 10, 3, 3, "#f4f0e0"); rect(ox, oy, 9, 10, 3, 3, "#f4f0e0"); }
 
   // --- Chest block faces (50 top, 51 side+latch) -------------------------
   speckle(50, "#7a5326", ["#8a5f2e", "#6b481f"]);
