@@ -1,11 +1,13 @@
-// ChunkMesher: culled-face meshing. Emits one opaque and one water
-// BufferGeometry per chunk. Per-face directional shading is baked into vertex
-// colours; per-vertex skylight/blocklight (sampled from the neighbour the face
-// faces) is baked into an `aLight` attribute the ChunkMaterial reads.
+// ChunkMesher: greedy meshing for opaque solid blocks (coplanar same-tile,
+// same-light faces merge into one quad), with a per-face path kept for water,
+// cutout blocks (glass/leaves), and torches. Per-face directional shade and the
+// sampled skylight/blocklight are baked in; the atlas tile window travels with
+// each vertex so the shader can repeat it across a merged quad.
 import * as THREE from "three";
 import { Chunk, CHUNK_X, CHUNK_Y, CHUNK_Z } from "./Chunk";
 import { AIR, BLOCKS, TORCH, isOpaque, meshLayer } from "./Block";
 import { tileUV } from "./TextureAtlas";
+import { greedyRects } from "./greedy";
 
 export interface ChunkMaterials {
   solid: THREE.Material;
@@ -34,34 +36,44 @@ const FACES: FaceSpec[] = [
   { dir: [0, 0, -1], corners: [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]], shade: 0.8 },
 ];
 
+// For a face axis a, the other two axes used as the greedy mask's u and v.
+const UV_AXIS: [number, number][] = [[1, 2], [0, 2], [0, 1]];
+
 class GeometryBuilder {
   private positions: number[] = [];
   private uvs: number[] = [];
+  private tiles: number[] = [];
   private colors: number[] = [];
   private lights: number[] = [];
   private indices: number[] = [];
 
-  // A single quad of an axis-aligned box spanning [min,max] within the cell.
+  // Low-level quad: 4 vertices (positions[12], tiled uv[8]) sharing a tile
+  // window, directional shade, and flat light.
+  pushQuad(p: number[], uv: number[], tile: readonly [number, number, number, number], shade: number, sky: number, block: number): void {
+    const base = this.positions.length / 3;
+    for (let i = 0; i < 4; i++) {
+      this.positions.push(p[i * 3], p[i * 3 + 1], p[i * 3 + 2]);
+      this.uvs.push(uv[i * 2], uv[i * 2 + 1]);
+      this.tiles.push(tile[0], tile[1], tile[2], tile[3]);
+      this.colors.push(shade, shade, shade);
+      this.lights.push(sky / 15, block / 15);
+    }
+    this.indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  }
+
+  // A single unit-cell quad (per-face path: water/cutout/torch).
   quad(
     ox: number, oy: number, oz: number,
     min: [number, number, number], max: [number, number, number],
     face: FaceSpec, tile: number, sky: number, block: number,
   ): void {
-    const [u0, v0, u1, v1] = tileUV(tile);
-    const uvCorners = [[u0, v0], [u1, v0], [u1, v1], [u0, v1]];
-    const base = this.positions.length / 3;
+    const uvUnit = [0, 0, 1, 0, 1, 1, 0, 1];
+    const p: number[] = [];
     for (let i = 0; i < 4; i++) {
       const c = face.corners[i];
-      this.positions.push(
-        ox + (c[0] ? max[0] : min[0]),
-        oy + (c[1] ? max[1] : min[1]),
-        oz + (c[2] ? max[2] : min[2]),
-      );
-      this.uvs.push(uvCorners[i][0], uvCorners[i][1]);
-      this.colors.push(face.shade, face.shade, face.shade);
-      this.lights.push(sky / 15, block / 15);
+      p.push(ox + (c[0] ? max[0] : min[0]), oy + (c[1] ? max[1] : min[1]), oz + (c[2] ? max[2] : min[2]));
     }
-    this.indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    this.pushQuad(p, uvUnit, tileUV(tile), face.shade, sky, block);
   }
 
   build(): THREE.BufferGeometry | null {
@@ -69,6 +81,7 @@ class GeometryBuilder {
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(this.positions, 3));
     g.setAttribute("uv", new THREE.Float32BufferAttribute(this.uvs, 2));
+    g.setAttribute("aTile", new THREE.Float32BufferAttribute(this.tiles, 4));
     g.setAttribute("color", new THREE.Float32BufferAttribute(this.colors, 3));
     g.setAttribute("aLight", new THREE.Float32BufferAttribute(this.lights, 2));
     g.setIndex(this.indices);
@@ -84,6 +97,12 @@ function tileFor(id: number, dir: [number, number, number]): number {
   return dir[1] === 1 ? t[0] : dir[1] === -1 ? t[2] : t[1];
 }
 
+// Opaque solid blocks take the greedy path; water/cutout/torch take per-face.
+function isGreedy(id: number): boolean {
+  const b = BLOCKS[id];
+  return id !== AIR && id !== TORCH && b.solid && b.opaque && meshLayer(id) === "solid";
+}
+
 export function meshChunk(
   source: BlockSource,
   chunk: Chunk,
@@ -94,6 +113,7 @@ export function meshChunk(
   const baseX = chunk.cx * CHUNK_X;
   const baseZ = chunk.cz * CHUNK_Z;
 
+  // Per-face path for the special blocks (greedy blocks handled below).
   for (let y = 0; y < CHUNK_Y; y++) {
     for (let z = 0; z < CHUNK_Z; z++) {
       for (let x = 0; x < CHUNK_X; x++) {
@@ -102,21 +122,16 @@ export function meshChunk(
         const wx = baseX + x;
         const wz = baseZ + z;
 
-        if (id === TORCH) {
-          emitTorch(solidBuilder, source, wx, y, wz);
-          continue;
-        }
+        if (id === TORCH) { emitTorch(solidBuilder, source, wx, y, wz); continue; }
+        if (isGreedy(id)) continue;
 
         const isWater = meshLayer(id) === "water";
         const builder = isWater ? waterBuilder : solidBuilder;
-
         for (const face of FACES) {
           const nx = wx + face.dir[0];
           const ny = y + face.dir[1];
           const nz = wz + face.dir[2];
           const nb = source.getBlock(nx, ny, nz);
-          // Water faces air only; everything else faces any non-opaque
-          // neighbour, skipping same-id boundaries (adjacent leaves/glass).
           const visible = isWater ? nb === AIR : !isOpaque(nb) && nb !== id;
           if (!visible) continue;
           const l = source.getLight(nx, ny, nz);
@@ -126,12 +141,73 @@ export function meshChunk(
     }
   }
 
+  greedyPass(source, chunk, solidBuilder);
+
   const solidGeo = solidBuilder.build();
   const waterGeo = waterBuilder.build();
   return {
     solid: solidGeo ? new THREE.Mesh(solidGeo, materials.solid) : null,
     water: waterGeo ? new THREE.Mesh(waterGeo, materials.water) : null,
   };
+}
+
+// Greedy-merge each face direction layer by layer.
+function greedyPass(source: BlockSource, chunk: Chunk, builder: GeometryBuilder): void {
+  const baseX = chunk.cx * CHUNK_X;
+  const baseZ = chunk.cz * CHUNK_Z;
+  const dim = [CHUNK_X, CHUNK_Y, CHUNK_Z];
+  const c = [0, 0, 0];
+
+  for (const face of FACES) {
+    const a = face.dir[0] !== 0 ? 0 : face.dir[1] !== 0 ? 1 : 2;
+    const s = face.dir[a];
+    const [au, av] = UV_AXIS[a];
+    const U = dim[au];
+    const V = dim[av];
+    const A = dim[a];
+    const mask = new Int32Array(U * V);
+
+    for (let la = 0; la < A; la++) {
+      mask.fill(0);
+      for (let vv = 0; vv < V; vv++) {
+        for (let uu = 0; uu < U; uu++) {
+          c[a] = la; c[au] = uu; c[av] = vv;
+          const id = chunk.get(c[0], c[1], c[2]);
+          if (!isGreedy(id)) continue;
+          const nx = baseX + c[0] + face.dir[0];
+          const ny = c[1] + face.dir[1];
+          const nz = baseZ + c[2] + face.dir[2];
+          const nb = source.getBlock(nx, ny, nz);
+          if (isOpaque(nb) || nb === id) continue;
+          const l = source.getLight(nx, ny, nz);
+          const tile = tileFor(id, face.dir);
+          mask[uu + vv * U] = ((tile << 8) | (l.sky << 4) | l.block) + 1;
+        }
+      }
+
+      const rects = greedyRects(mask, U, V);
+      if (rects.length === 0) continue;
+      const faceA = la + (s > 0 ? 1 : 0);
+      for (const r of rects) {
+        const k = r.key - 1;
+        const block = k & 15;
+        const sky = (k >> 4) & 15;
+        const tile = k >> 8;
+        const u0 = r.u, u1 = r.u + r.w, v0 = r.v, v1 = r.v + r.h;
+        const p: number[] = [];
+        const uv: number[] = [];
+        for (const corner of face.corners) {
+          const cc = [0, 0, 0];
+          cc[a] = faceA;
+          cc[au] = corner[au] ? u1 : u0;
+          cc[av] = corner[av] ? v1 : v0;
+          p.push(baseX + cc[0], cc[1], baseZ + cc[2]);
+          uv.push(corner[au] ? r.w : 0, corner[av] ? r.h : 0);
+        }
+        builder.pushQuad(p, uv, tileUV(tile), face.shade, sky, block);
+      }
+    }
+  }
 }
 
 // A torch renders as a thin emissive pillar, lit by its own cell's light.

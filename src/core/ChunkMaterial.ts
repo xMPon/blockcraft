@@ -15,12 +15,15 @@ export interface ChunkMaterials {
 const VERT = /* glsl */ `
   attribute vec3 color;   // per-face directional shade (grayscale)
   attribute vec2 aLight;  // x = skylight 0..1, y = blocklight 0..1
-  varying vec2 vUv;
+  attribute vec4 aTile;   // atlas tile window [u0, v0, u1, v1]
+  varying vec2 vUv;       // tiled coords (may exceed 0..1 on merged quads)
+  varying vec4 vTile;
   varying vec3 vShade;
   varying vec2 vLight;
   varying float vFogDepth;
   void main() {
     vUv = uv;
+    vTile = aTile;
     vShade = color;
     vLight = aLight;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
@@ -37,11 +40,15 @@ const FRAG = /* glsl */ `
   uniform float uFogFar;
   uniform float uOpacity;
   varying vec2 vUv;
+  varying vec4 vTile;
   varying vec3 vShade;
   varying vec2 vLight;
   varying float vFogDepth;
   void main() {
-    vec4 tex = texture2D(map, vUv);
+    // Repeat the atlas tile across greedy-merged quads (fract wraps each cell).
+    vec2 cell = fract(vUv);
+    vec2 uvw = mix(vTile.xy, vTile.zw, cell);
+    vec4 tex = texture2D(map, uvw);
     if (tex.a < 0.5) discard;               // cutout (torch/glass) transparency
     float light = max(vLight.y, vLight.x * uDayFactor);
     light = clamp(light, 0.06, 1.0);        // never pitch black
