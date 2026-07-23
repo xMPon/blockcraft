@@ -21,6 +21,14 @@ const SWIM_SINK_CAP = 2.5; // max downward speed in water
 const SWIM_UP = 4.2; // upward speed while holding Space
 const SWIM_HSPEED = 0.6; // horizontal speed multiplier in water
 
+// Lava is a thick fluid: you sink and climb more slowly than in water and wade
+// more sluggishly through it. This only governs movement — the burn lives in
+// applySurvival. Climb speed stays above the sink cap so lava is escapable.
+const LAVA_GRAVITY = GRAVITY * 0.25;
+const LAVA_SINK_CAP = 1.2; // sinks slower than water
+const LAVA_UP = 2.6; // slower climb than water, but still gets you out
+const LAVA_HSPEED = 0.35; // very sluggish horizontal movement
+
 export const MAX_HEALTH = 20;
 const MAX_AIR = 10; // seconds of breath underwater
 const SAFE_FALL = 3; // blocks of fall absorbed before damage
@@ -47,6 +55,7 @@ export class Player {
   readonly maxAir = MAX_AIR;
   submerged = false; // head underwater (drowning)
   inWater = false; // body in water (swimming)
+  inLava = false; // body in lava (burning + viscous movement)
   sprinting = false;
   invuln = 0; // remaining damage-immunity time
   hurtFlash = 0; // remaining red-flash time (for the HUD)
@@ -101,23 +110,32 @@ export class Player {
     this.prevForward = forward;
     if (!forward || this.health <= 0) this.sprinting = false;
 
-    this.inWater = this.checkWater(world);
+    this.inWater = this.bodyIn(world, WATER);
+    this.inLava = this.bodyIn(world, LAVA);
+    const inFluid = this.inWater || this.inLava;
 
     // yaw 0 faces -Z (three.js camera convention).
     const sin = Math.sin(this.yaw);
     const cos = Math.cos(this.yaw);
-    const sprintMult = this.sprinting && !this.inWater ? SPRINT_MULT : 1;
-    const hspeed = SPEED * sprintMult * (this.inWater ? SWIM_HSPEED : 1);
+    const sprintMult = this.sprinting && !inFluid ? SPRINT_MULT : 1;
+    // Lava wades slower than water; either fluid cancels the sprint bonus above.
+    const hMult = this.inLava ? LAVA_HSPEED : this.inWater ? SWIM_HSPEED : 1;
+    const hspeed = SPEED * sprintMult * hMult;
     this.velocity.x = (-sin * fwd + cos * strafe) * hspeed;
     this.velocity.z = (-cos * fwd - sin * strafe) * hspeed;
     // Movement burns food, sprinting more so.
     if (mag > 0) this.frameExhaustion += (this.sprinting ? 0.04 : 0.01);
 
-    if (this.inWater) {
-      // Buoyant: sink gently (capped), or swim up by holding Space.
-      this.velocity.y -= SWIM_GRAVITY * dt;
-      if (this.velocity.y < -SWIM_SINK_CAP) this.velocity.y = -SWIM_SINK_CAP;
-      if (input.isDown("Space")) this.velocity.y = SWIM_UP;
+    if (inFluid) {
+      // Buoyant: sink gently (capped), or kick upward by holding Space. Lava is
+      // thicker — weaker sink and a slower climb, but still escapable. Lava
+      // takes precedence when the body straddles both fluids.
+      const fluidGravity = this.inLava ? LAVA_GRAVITY : SWIM_GRAVITY;
+      const sinkCap = this.inLava ? LAVA_SINK_CAP : SWIM_SINK_CAP;
+      const swimUp = this.inLava ? LAVA_UP : SWIM_UP;
+      this.velocity.y -= fluidGravity * dt;
+      if (this.velocity.y < -sinkCap) this.velocity.y = -sinkCap;
+      if (input.isDown("Space")) this.velocity.y = swimUp;
     } else {
       this.velocity.y -= GRAVITY * dt;
       if (this.velocity.y < -50) this.velocity.y = -50;
@@ -135,8 +153,8 @@ export class Player {
   // Fall damage on landing, drowning while submerged, and respawn on death.
   // Health regen is driven by the Hunger system, not here.
   private applySurvival(dt: number, wasOnGround: boolean, world: World): void {
-    // Water cushions falls — zero the tracked drop height while swimming.
-    if (this.inWater) this.fallPeak = this.position.y;
+    // Water and lava both cushion falls — zero the tracked drop height in fluid.
+    if (this.inWater || this.inLava) this.fallPeak = this.position.y;
 
     if (this.onGround) {
       if (!wasOnGround) this.hurt(fallDamage(this.fallPeak - this.position.y));
@@ -164,11 +182,8 @@ export class Player {
       this.drownTimer = 0;
     }
 
-    // Lava burns: 4 HP every 0.5 s while feet or waist are in lava.
-    const inLava =
-      world.getBlock(bx, Math.floor(this.position.y + 0.1), bz) === LAVA ||
-      world.getBlock(bx, Math.floor(this.position.y + 0.9), bz) === LAVA;
-    if (inLava) {
+    // Lava burns: 4 HP every 0.5 s while the body is in lava (state set in update()).
+    if (this.inLava) {
       this.lavaTimer += dt;
       if (this.lavaTimer >= 0.5) {
         this.hurt(4);
@@ -212,6 +227,7 @@ export class Player {
     this.health = this.maxHealth;
     this.air = this.maxAir;
     this.drownTimer = 0;
+    this.lavaTimer = 0;
     this.fallPeak = this.spawn.y;
     this.sprinting = false;
   }
@@ -238,13 +254,13 @@ export class Player {
     return boxIntersectsCell(this.position, HALF_W, HEIGHT, x, y, z);
   }
 
-  /** Is the player's body (feet or waist) in a water voxel? */
-  private checkWater(world: World): boolean {
+  /** Is the player's body (feet or waist) inside a voxel of the given block? */
+  private bodyIn(world: World, block: number): boolean {
     const x = Math.floor(this.position.x);
     const z = Math.floor(this.position.z);
     return (
-      world.getBlock(x, Math.floor(this.position.y + 0.1), z) === WATER ||
-      world.getBlock(x, Math.floor(this.position.y + 0.9), z) === WATER
+      world.getBlock(x, Math.floor(this.position.y + 0.1), z) === block ||
+      world.getBlock(x, Math.floor(this.position.y + 0.9), z) === block
     );
   }
 }
