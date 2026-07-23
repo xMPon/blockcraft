@@ -62,6 +62,9 @@ export const I_IRON_SHOVEL = 49;
 export const I_WOOD_SWORD = 50;
 export const I_STONE_SWORD = 51;
 export const I_IRON_SWORD = 52;
+export const I_DIAMOND_AXE = 53;
+export const I_DIAMOND_SHOVEL = 54;
+export const I_DIAMOND_SWORD = 55;
 // Foods (mob loot; raw cooks in a furnace) + mob materials
 export const I_RAW_PORK = 60;
 export const I_COOKED_PORK = 61;
@@ -139,6 +142,9 @@ tool(I_IRON_SHOVEL, "iron shovel", T_SHOVEL, "#e8d8c4", "shovel", TIER_IRON, 6);
 tool(I_WOOD_SWORD, "wooden sword", T_SWORD, "#b9925a", "sword", TIER_WOOD, 1);
 tool(I_STONE_SWORD, "stone sword", T_SWORD, "#8a8a8a", "sword", TIER_STONE, 1);
 tool(I_IRON_SWORD, "iron sword", T_SWORD, "#e8d8c4", "sword", TIER_IRON, 1);
+tool(I_DIAMOND_AXE, "diamond axe", T_AXE, "#52d9d0", "axe", TIER_DIAMOND, 8);
+tool(I_DIAMOND_SHOVEL, "diamond shovel", T_SHOVEL, "#52d9d0", "shovel", TIER_DIAMOND, 8);
+tool(I_DIAMOND_SWORD, "diamond sword", T_SWORD, "#52d9d0", "sword", TIER_DIAMOND, 1);
 
 // Foods — cooked variants restore more hunger than raw.
 material(I_RAW_PORK, "raw porkchop", T_RAW_PORK, "#e98f9c", 3);

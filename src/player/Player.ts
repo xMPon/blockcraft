@@ -1,7 +1,7 @@
 // Player: first-person physics — axis-separated AABB collision against
 // voxels, gravity, jumping, and yaw/pitch mouse look.
 import * as THREE from "three";
-import { WATER } from "../world/Block";
+import { WATER, LAVA } from "../world/Block";
 import { moveAndCollide, boxIntersectsCell } from "../physics/aabb";
 import type { World } from "../world/World";
 import type { Input } from "../core/Input";
@@ -56,6 +56,7 @@ export class Player {
   private readonly spawn: THREE.Vector3;
   private fallPeak: number;
   private drownTimer = 0;
+  private lavaTimer = 0;
   private prevForward = false;
   private lastForwardTap = 0;
 
@@ -144,11 +145,9 @@ export class Player {
       this.fallPeak = Math.max(this.fallPeak, this.position.y);
     }
 
-    const head = world.getBlock(
-      Math.floor(this.position.x),
-      Math.floor(this.position.y + 1.6),
-      Math.floor(this.position.z),
-    );
+    const bx = Math.floor(this.position.x);
+    const bz = Math.floor(this.position.z);
+    const head = world.getBlock(bx, Math.floor(this.position.y + 1.6), bz);
     this.submerged = head === WATER;
     if (this.submerged) {
       this.air -= dt;
@@ -163,6 +162,20 @@ export class Player {
     } else {
       this.air = this.maxAir;
       this.drownTimer = 0;
+    }
+
+    // Lava burns: 4 HP every 0.5 s while feet or waist are in lava.
+    const inLava =
+      world.getBlock(bx, Math.floor(this.position.y + 0.1), bz) === LAVA ||
+      world.getBlock(bx, Math.floor(this.position.y + 0.9), bz) === LAVA;
+    if (inLava) {
+      this.lavaTimer += dt;
+      if (this.lavaTimer >= 0.5) {
+        this.hurt(4);
+        this.lavaTimer -= 0.5;
+      }
+    } else {
+      this.lavaTimer = 0;
     }
 
     if (this.health <= 0) this.respawn();

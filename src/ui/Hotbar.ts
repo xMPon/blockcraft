@@ -37,6 +37,7 @@ export class Hotbar {
       if (n >= 1 && n <= HOTBAR_SIZE) this.inv.selected = n - 1;
     });
     window.addEventListener("wheel", (e) => {
+      if (!document.pointerLockElement) return;
       const step = e.deltaY > 0 ? 1 : -1;
       this.inv.selected = (this.inv.selected + step + HOTBAR_SIZE) % HOTBAR_SIZE;
     });
