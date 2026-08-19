@@ -2,6 +2,8 @@
 
 A Minecraft-style voxel sandbox that runs in the browser. TypeScript + Three.js, no game engine.
 
+**▶ [Play in your browser](https://xmpon.github.io/blockcraft/)** — no install needed.
+
 **Features**
 
 - Procedural terrain from seeded simplex noise — hills, beaches, sea-level water, trees
