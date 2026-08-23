@@ -1,8 +1,27 @@
 {
   "name": "blockcraft",
-  "private": true,
   "version": "0.1.0",
+  "description": "A Minecraft-style voxel sandbox that runs in the browser with TypeScript and Three.js.",
+  "license": "MIT",
+  "homepage": "https://xmpon.github.io/blockcraft/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xMPon/blockcraft.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xMPon/blockcraft/issues"
+  },
+  "keywords": [
+    "voxel",
+    "sandbox",
+    "threejs",
+    "typescript",
+    "browser-game"
+  ],
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
