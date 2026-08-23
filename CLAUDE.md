@@ -55,6 +55,12 @@ Minecraft-style browser voxel game. TypeScript + Three.js + Vite. Plain TS game 
 - **Worldgen must stay deterministic.** All randomness derives from the world seed via `core/rng.ts`. Never use `Math.random()` in `world/`.
 - `world/Chunk.ts`, `world/WorldGen.ts`, and `player/Raycast.ts` stay free of DOM dependencies so vitest runs them in node.
 - Block ids are stable contracts (saved worlds will depend on them) — append new blocks, never renumber.
+- **Roadmap every change.** Before introducing a feature, fixing a bug,
+  addressing technical debt, or making a meaningful maintenance change, link the
+  work to an existing roadmap issue or create a new categorised roadmap entry.
+  Start the linked issue before implementation and keep its status and details
+  aligned with the code change. Update `TODO.md` when the change affects the
+  planned roadmap so the GitHub Project sync remains accurate.
 - Mesher visibility rule: water draws faces only against air; everything else draws against any non-opaque neighbour, skipping boundaries shared with the same block id (so adjacent leaves/glass don't draw internal faces).
 - Chunk streaming: generation is budgeted per frame — `World.remesh()` generates a chunk and its four lateral neighbours on demand so border faces still mesh against real data without bursting the whole radius (caves + 128-tall chunks make generation the heavy work).
 - **Verification handle:** `main.ts` exposes `window.__bc = { engine, world, player, input, hud }`. When the preview tab is backgrounded the render loop is throttled, so verify headlessly: loop `world.update(...)` to force-stream, call `engine.renderer.render(...)`, then read `renderer.info.render` or `gl.readPixels` / `world.getBlock`.
