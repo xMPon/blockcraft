@@ -50,6 +50,25 @@ Minecraft-style browser voxel game. TypeScript + Three.js + Vite. Plain TS game 
 | `ui/Hotbar.ts`, `ui/Hud.ts` | DOM hotbar (inventory row), crosshair, hearts/air/hunger, overlay |
 | `ui/PauseMenu.ts` | Esc menu / title: resume, save, new world (shows seed) |
 
+## Commit Messages
+
+- **Claude co-authorship is allowed on this project.** End commit messages here
+  with the attribution trailer:
+
+  ```
+  Co-Authored-By: Claude <noreply@anthropic.com>
+  ```
+
+  (Use the specific model line when the harness supplies one, e.g.
+  `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>`.)
+- This is a deliberate **exception** to the workspace-wide no-attribution rule in
+  `.claude/CLAUDE.md` and the global rule in `~/.claude/CLAUDE.md`. It applies to
+  this repository only — every other project in the workspace still gets no
+  trailer.
+- Everything above the trailer is still just the change description.
+
+---
+
 ## Conventions
 
 - **Worldgen must stay deterministic.** All randomness derives from the world seed via `core/rng.ts`. Never use `Math.random()` in `world/`.
